@@ -40,7 +40,7 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    Alert.alert("Login", "Authentication will be connected later.");
+    navigation.replace('MainTabs');
   }
 
   return (

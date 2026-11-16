@@ -70,7 +70,7 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    Alert.alert("Register", "Account creation will be connected later.");
+    navigation.replace('MainTabs');
   }
 
   return (
