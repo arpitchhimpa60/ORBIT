@@ -1,5 +1,6 @@
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import EditProfileScreen from '../../screens/EditProfileScreen';
 
 import WelcomeScreen from '../../screens/WelcomeScreen';
 import LoginScreen from '../../screens/LoginScreen';
@@ -24,6 +25,7 @@ export default function StackNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
       <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     </Stack.Navigator>
   );
 }

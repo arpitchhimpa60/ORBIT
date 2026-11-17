@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import {
   View,
@@ -12,15 +12,27 @@ import {
 
 import OrbitalBackground from '../components/OrbitalBackground';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation, route }) {
   const [theme, setTheme] = useState('Dark');
 
   // Temporary profile information
-  const user = {
+  const [user, setUser] = useState({
     name: 'Arpit Chhimpa',
     username: '@arpit',
     about: 'Building connections, one conversation at a time.',
-  };
+  });
+
+  // Receive updated profile information
+  const updatedProfile = route.params?.updatedProfile;
+
+  useEffect(() => {
+    if (updatedProfile) {
+      setUser(updatedProfile);
+
+      // Clear the parameter after receiving the data
+      navigation.setParams({ updatedProfile: undefined });
+    }
+  }, [updatedProfile, navigation]);
 
   // Show placeholder messages
   function showComingSoon(feature) {
@@ -52,7 +64,7 @@ export default function ProfileScreen() {
           {/* Avatar */}
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {user.name.charAt(0)}
+              {user.name.charAt(0).toUpperCase()}
             </Text>
           </View>
 
@@ -73,7 +85,11 @@ export default function ProfileScreen() {
           {/* Edit Profile */}
           <Pressable
             style={styles.editButton}
-            onPress={() => showComingSoon('Edit Profile')}
+            onPress={() =>
+              navigation.navigate('EditProfile', {
+                profile: user,
+              })
+            }
           >
             <Text style={styles.editButtonText}>
               Edit Profile
