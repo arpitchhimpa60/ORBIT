@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import {
   View,
@@ -14,7 +14,7 @@ import {
 import OrbitalBackground from '../components/OrbitalBackground';
 
 // Temporary sample groups
-const groups = [
+const initialGroups = [
   {
     id: '1',
     name: 'Project Team',
@@ -57,8 +57,33 @@ const groups = [
   },
 ];
 
-export default function GroupsScreen({ navigation }) {
+export default function GroupsScreen({ navigation, route }) {
+  const [groups, setGroups] = useState(initialGroups);
   const [search, setSearch] = useState('');
+
+  // Receive a newly created group
+  const newGroup = route.params?.newGroup;
+
+  useEffect(() => {
+    if (newGroup) {
+      setGroups((previousGroups) => {
+        // Prevent adding the same group twice
+        const alreadyExists = previousGroups.some(
+          (group) => group.id === newGroup.id
+        );
+
+        if (alreadyExists) {
+          return previousGroups;
+        }
+
+        // Add new group at the beginning
+        return [newGroup, ...previousGroups];
+      });
+
+      // Clear the navigation parameter
+      navigation.setParams({ newGroup: undefined });
+    }
+  }, [newGroup, navigation]);
 
   // Search groups by name
   const filteredGroups = groups.filter((item) => {
