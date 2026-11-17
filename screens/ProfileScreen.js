@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 import {
   View,
@@ -8,18 +7,18 @@ import {
   ScrollView,
   Pressable,
   Alert,
-} from 'react-native';
+} from "react-native";
 
-import OrbitalBackground from '../components/OrbitalBackground';
+import OrbitalBackground from "../components/OrbitalBackground";
 
 export default function ProfileScreen({ navigation, route }) {
-  const [theme, setTheme] = useState('Dark');
+  const [theme, setTheme] = useState("Dark");
 
   // Temporary profile information
   const [user, setUser] = useState({
-    name: 'Arpit Chhimpa',
-    username: '@arpit',
-    about: 'Building connections, one conversation at a time.',
+    name: "Arpit Chhimpa",
+    username: "@arpit",
+    about: "Building connections, one conversation at a time.",
   });
 
   // Receive updated profile information
@@ -36,19 +35,12 @@ export default function ProfileScreen({ navigation, route }) {
 
   // Show placeholder messages
   function showComingSoon(feature) {
-    Alert.alert(
-      feature,
-      `${feature} will be implemented in the next step.`
-    );
+    Alert.alert(feature, `${feature} will be implemented in the next step.`);
   }
 
   return (
     <OrbitalBackground>
-      <ScrollView
-        style={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.heading}>Profile</Text>
@@ -60,7 +52,6 @@ export default function ProfileScreen({ navigation, route }) {
 
         {/* Profile Card */}
         <View style={styles.profileCard}>
-
           {/* Avatar */}
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -69,54 +60,40 @@ export default function ProfileScreen({ navigation, route }) {
           </View>
 
           {/* Name and Username */}
-          <Text style={styles.name}>
-            {user.name}
-          </Text>
+          <Text style={styles.name}>{user.name}</Text>
 
-          <Text style={styles.username}>
-            {user.username}
-          </Text>
+          <Text style={styles.username}>{user.username}</Text>
 
           {/* About */}
-          <Text style={styles.about}>
-            {user.about}
-          </Text>
+          <Text style={styles.about}>{user.about}</Text>
 
           {/* Edit Profile */}
           <Pressable
             style={styles.editButton}
             onPress={() =>
-              navigation.navigate('EditProfile', {
+              navigation.navigate("EditProfile", {
                 profile: user,
               })
             }
           >
-            <Text style={styles.editButtonText}>
-              Edit Profile
-            </Text>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
           </Pressable>
-
         </View>
 
         {/* Account Settings */}
-        <Text style={styles.sectionTitle}>
-          Account
-        </Text>
+        <Text style={styles.sectionTitle}>Account</Text>
 
         <View style={styles.settingsCard}>
-
           <Pressable
             style={styles.settingItem}
-            onPress={() => showComingSoon('Change Password')}
+            onPress={() => navigation.navigate("ChangePassword")}
           >
             <View style={styles.settingIcon}>
               <Text style={styles.iconText}>🔒</Text>
             </View>
 
             <View style={styles.settingDetails}>
-              <Text style={styles.settingName}>
-                Change Password
-              </Text>
+              <Text style={styles.settingName}>Change Password</Text>
 
               <Text style={styles.settingDescription}>
                 Update your account password
@@ -130,16 +107,14 @@ export default function ProfileScreen({ navigation, route }) {
 
           <Pressable
             style={styles.settingItem}
-            onPress={() => showComingSoon('Account Settings')}
+            onPress={() => showComingSoon("Account Settings")}
           >
             <View style={styles.settingIcon}>
               <Text style={styles.iconText}>⚙</Text>
             </View>
 
             <View style={styles.settingDetails}>
-              <Text style={styles.settingName}>
-                Account Settings
-              </Text>
+              <Text style={styles.settingName}>Account Settings</Text>
 
               <Text style={styles.settingDescription}>
                 Manage your account preferences
@@ -148,25 +123,19 @@ export default function ProfileScreen({ navigation, route }) {
 
             <Text style={styles.arrow}>›</Text>
           </Pressable>
-
         </View>
 
         {/* Appearance */}
-        <Text style={styles.sectionTitle}>
-          Appearance
-        </Text>
+        <Text style={styles.sectionTitle}>Appearance</Text>
 
         <View style={styles.settingsCard}>
-
           <View style={styles.themeHeader}>
             <View style={styles.settingIcon}>
               <Text style={styles.iconText}>☾</Text>
             </View>
 
             <View style={styles.settingDetails}>
-              <Text style={styles.settingName}>
-                App Theme
-              </Text>
+              <Text style={styles.settingName}>App Theme</Text>
 
               <Text style={styles.settingDescription}>
                 Choose your preferred appearance
@@ -179,14 +148,14 @@ export default function ProfileScreen({ navigation, route }) {
             <Pressable
               style={[
                 styles.themeButton,
-                theme === 'Light' && styles.activeTheme,
+                theme === "Light" && styles.activeTheme,
               ]}
-              onPress={() => setTheme('Light')}
+              onPress={() => setTheme("Light")}
             >
               <Text
                 style={[
                   styles.themeButtonText,
-                  theme === 'Light' && styles.activeThemeText,
+                  theme === "Light" && styles.activeThemeText,
                 ]}
               >
                 ☀ Light
@@ -196,14 +165,14 @@ export default function ProfileScreen({ navigation, route }) {
             <Pressable
               style={[
                 styles.themeButton,
-                theme === 'Dark' && styles.activeTheme,
+                theme === "Dark" && styles.activeTheme,
               ]}
-              onPress={() => setTheme('Dark')}
+              onPress={() => setTheme("Dark")}
             >
               <Text
                 style={[
                   styles.themeButtonText,
-                  theme === 'Dark' && styles.activeThemeText,
+                  theme === "Dark" && styles.activeThemeText,
                 ]}
               >
                 ☾ Dark
@@ -211,27 +180,19 @@ export default function ProfileScreen({ navigation, route }) {
             </Pressable>
           </View>
 
-          <Text style={styles.themeNote}>
-            Selected preference: {theme}
-          </Text>
-
+          <Text style={styles.themeNote}>Selected preference: {theme}</Text>
         </View>
 
         {/* App Information */}
         <View style={styles.footer}>
-          <Text style={styles.footerTitle}>
-            ORBIT
-          </Text>
+          <Text style={styles.footerTitle}>ORBIT</Text>
 
           <Text style={styles.footerDescription}>
             Stay Connected. Stay in Orbit.
           </Text>
 
-          <Text style={styles.version}>
-            Version 1.0.0
-          </Text>
+          <Text style={styles.version}>Version 1.0.0</Text>
         </View>
-
       </ScrollView>
     </OrbitalBackground>
   );
@@ -249,24 +210,24 @@ const styles = StyleSheet.create({
   },
 
   heading: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 30,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   description: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 13,
     marginTop: 6,
   },
 
   profileCard: {
-    backgroundColor: '#40318C',
+    backgroundColor: "#40318C",
     borderWidth: 1,
-    borderColor: '#6258E8',
+    borderColor: "#6258E8",
     borderRadius: 20,
     padding: 22,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 28,
   },
 
@@ -274,42 +235,42 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#7669D8',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#7669D8",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 15,
     borderWidth: 3,
-    borderColor: '#A99EFF',
+    borderColor: "#A99EFF",
   },
 
   avatarText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 38,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   name: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 21,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   username: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 14,
     marginTop: 5,
   },
 
   about: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 13,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 15,
     lineHeight: 20,
   },
 
   editButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 30,
@@ -317,22 +278,22 @@ const styles = StyleSheet.create({
   },
 
   editButtonText: {
-    color: '#302078',
+    color: "#302078",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   sectionTitle: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 12,
   },
 
   settingsCard: {
-    backgroundColor: '#40318C',
+    backgroundColor: "#40318C",
     borderWidth: 1,
-    borderColor: '#6258E8',
+    borderColor: "#6258E8",
     borderRadius: 16,
     paddingHorizontal: 15,
     paddingVertical: 5,
@@ -340,8 +301,8 @@ const styles = StyleSheet.create({
   },
 
   settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 15,
   },
 
@@ -349,15 +310,15 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: '#7669D8',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#7669D8",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
 
   iconText: {
     fontSize: 19,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
 
   settingDetails: {
@@ -365,93 +326,93 @@ const styles = StyleSheet.create({
   },
 
   settingName: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   settingDescription: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 11,
     marginTop: 4,
   },
 
   arrow: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 28,
     marginLeft: 8,
   },
 
   separator: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
 
   themeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 15,
   },
 
   themeOptions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     marginTop: 5,
   },
 
   themeButton: {
     flex: 1,
-    backgroundColor: '#302078',
+    backgroundColor: "#302078",
     borderWidth: 1,
-    borderColor: '#7669D8',
+    borderColor: "#7669D8",
     borderRadius: 10,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   activeTheme: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
   },
 
   themeButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   activeThemeText: {
-    color: '#302078',
+    color: "#302078",
   },
 
   themeNote: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 11,
     marginTop: 12,
     marginBottom: 15,
   },
 
   footer: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 25,
     marginBottom: 15,
   },
 
   footerTitle: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     letterSpacing: 4,
   },
 
   footerDescription: {
-    color: '#D8D2FF',
+    color: "#D8D2FF",
     fontSize: 12,
     marginTop: 5,
   },
 
   version: {
-    color: '#BDB5E8',
+    color: "#BDB5E8",
     fontSize: 10,
     marginTop: 10,
   },
