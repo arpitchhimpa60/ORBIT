@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const router = express.Router();
@@ -5,6 +6,7 @@ const router = express.Router();
 const {
   registerUser,
   loginUser,
+  updateProfile,
 } = require("../controllers/authController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -29,5 +31,8 @@ router.get("/me", authMiddleware, (req, res) => {
     },
   });
 });
+
+// Update logged-in user's profile
+router.patch("/me", authMiddleware, updateProfile);
 
 module.exports = router;

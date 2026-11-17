@@ -1,3 +1,4 @@
+
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -105,7 +106,6 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check required fields
     if (!email || !password) {
       return res.status(400).json({
         message: "Please provide email and password",
@@ -114,7 +114,6 @@ const loginUser = async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Find user by email
     const user = await User.findOne({
       email: cleanEmail,
     });
@@ -125,7 +124,6 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Compare entered password with stored hash
     const isPasswordCorrect = await bcrypt.compare(
       password,
       user.password
@@ -137,14 +135,12 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // Send token and user details
     res.status(200).json({
       message: "Login successful",
       token,
@@ -166,7 +162,73 @@ const loginUser = async (req, res) => {
   }
 };
 
+// Update the logged-in user's profile
+const updateProfile = async (req, res) => {
+  try {
+    const { name, about } = req.body;
+
+    if (name === undefined && about === undefined) {
+      return res.status(400).json({
+        message: "Please provide profile information to update",
+      });
+    }
+
+    if (name !== undefined) {
+      if (typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({
+          message: "Name cannot be empty",
+        });
+      }
+
+      if (name.trim().length > 40) {
+        return res.status(400).json({
+          message: "Name cannot exceed 40 characters",
+        });
+      }
+
+      req.user.name = name.trim();
+    }
+
+    if (about !== undefined) {
+      if (typeof about !== "string") {
+        return res.status(400).json({
+          message: "About must be text",
+        });
+      }
+
+      if (about.trim().length > 150) {
+        return res.status(400).json({
+          message: "About cannot exceed 150 characters",
+        });
+      }
+
+      req.user.about = about.trim();
+    }
+
+    await req.user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        username: req.user.username,
+        email: req.user.email,
+        about: req.user.about,
+        profilePicture: req.user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.log("Profile update error:", error.message);
+
+    res.status(500).json({
+      message: "Server error while updating profile",
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
+  updateProfile,
 };
