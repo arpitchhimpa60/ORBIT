@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useContext } from "react";
+
 import {
   View,
   Text,
@@ -11,36 +12,65 @@ import {
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function ProfileScreen({ navigation, route }) {
-  // Get global theme information
   const { theme, themeName, setThemeName } = useContext(ThemeContext);
+  const { user: authUser, logout } = useContext(AuthContext);
 
-  // Temporary profile information
-  const [user, setUser] = useState({
-    name: "Arpit Chhimpa",
-    username: "@arpit",
-    about: "Building connections, one conversation at a time.",
-  });
+  // Store profile updates received from Edit Profile
+  const [updatedUser, setUpdatedUser] = useState(null);
 
-  // Receive updated profile information
   const updatedProfile = route.params?.updatedProfile;
 
   useEffect(() => {
     if (updatedProfile) {
-      setUser(updatedProfile);
+      setUpdatedUser(updatedProfile);
 
       // Clear the parameter after receiving the data
       navigation.setParams({ updatedProfile: undefined });
     }
   }, [updatedProfile, navigation]);
 
-  // Show placeholder messages
+  // Use the updated profile if available, otherwise use backend data
+  const user = updatedUser || authUser;
+
   function showComingSoon(feature) {
     Alert.alert(feature, `${feature} will be implemented in the next step.`);
   }
 
-  // Theme-aware styles
+  // Handle logout
+  function handleLogout() {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to log out from this device?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              Alert.alert("Logout failed", error.message);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  // Display username with @
+  const displayUsername = user?.username
+    ? user.username.startsWith("@")
+      ? user.username
+      : `@${user.username}`
+    : "";
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -235,6 +265,12 @@ export default function ProfileScreen({ navigation, route }) {
       marginBottom: 15,
     },
 
+    logoutText: {
+      color: "#FF6B6B",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
     footer: {
       alignItems: "center",
       paddingVertical: 25,
@@ -263,7 +299,10 @@ export default function ProfileScreen({ navigation, route }) {
 
   return (
     <OrbitalBackground>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.heading}>Profile</Text>
@@ -275,20 +314,23 @@ export default function ProfileScreen({ navigation, route }) {
 
         {/* Profile Card */}
         <View style={styles.profileCard}>
-          {/* Avatar */}
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {user.name.charAt(0).toUpperCase()}
+              {user?.name?.charAt(0).toUpperCase() || "U"}
             </Text>
           </View>
 
-          {/* Name and Username */}
-          <Text style={styles.name}>{user.name}</Text>
+          <Text style={styles.name}>
+            {user?.name || "User"}
+          </Text>
 
-          <Text style={styles.username}>{user.username}</Text>
+          <Text style={styles.username}>
+            {displayUsername}
+          </Text>
 
-          {/* About */}
-          <Text style={styles.about}>{user.about}</Text>
+          <Text style={styles.about}>
+            {user?.about || "No about information added yet."}
+          </Text>
 
           {/* Edit Profile */}
           <Pressable
@@ -366,7 +408,6 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Theme selection */}
           <View style={styles.themeOptions}>
             <Pressable
               style={[
@@ -406,6 +447,30 @@ export default function ProfileScreen({ navigation, route }) {
           <Text style={styles.themeNote}>
             Selected preference: {themeName}
           </Text>
+        </View>
+
+        {/* Logout */}
+        <Text style={styles.sectionTitle}>Session</Text>
+
+        <View style={styles.settingsCard}>
+          <Pressable
+            style={styles.settingItem}
+            onPress={handleLogout}
+          >
+            <View style={styles.settingIcon}>
+              <Text style={styles.iconText}>↪</Text>
+            </View>
+
+            <View style={styles.settingDetails}>
+              <Text style={styles.logoutText}>Logout</Text>
+
+              <Text style={styles.settingDescription}>
+                Log out from this device
+              </Text>
+            </View>
+
+            <Text style={styles.arrow}>›</Text>
+          </Pressable>
         </View>
 
         {/* App Information */}

@@ -1,5 +1,5 @@
 
-import { useState, useContext } from "react";
+import { useState, useContext, useCallback } from "react";
 
 import {
   View,
@@ -8,66 +8,93 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
+
+import { useFocusEffect } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
-
-// Temporary conversation data
-const conversations = [
-  {
-    id: "1",
-    name: "Rahul Sharma",
-    username: "@rahul",
-    message: "Hey! How are you?",
-    time: "9:15 PM",
-    unread: 2,
-    online: true,
-  },
-  {
-    id: "2",
-    name: "Ananya Singh",
-    username: "@ananya",
-    message: "See you tomorrow!",
-    time: "8:45 PM",
-    unread: 0,
-    online: true,
-  },
-  {
-    id: "3",
-    name: "Ketan Agarwal",
-    username: "@ketan",
-    message: "Project update shared.",
-    time: "7:30 PM",
-    unread: 1,
-    online: false,
-  },
-  {
-    id: "4",
-    name: "Arnav Goyal",
-    username: "@arnav",
-    message: "Thanks for your help!",
-    time: "6:20 PM",
-    unread: 0,
-    online: false,
-  },
-  {
-    id: "5",
-    name: "Asmi Mishra",
-    username: "@asmi",
-    message: "That sounds great!",
-    time: "Yesterday",
-    unread: 0,
-    online: true,
-  },
-];
+import { AuthContext } from "../context/AuthContext";
+import { apiRequest } from "../services/api";
 
 export default function ChatsScreen({ navigation }) {
   const [search, setSearch] = useState("");
+  const [conversations, setConversations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Get global theme
   const { theme } = useContext(ThemeContext);
+  const { user } = useContext(AuthContext);
+
+  // Get the logged-in user's ID
+  const currentUserId = user?._id || user?.id;
+
+  // Fetch conversations whenever the Chats screen is opened
+  const fetchConversations = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        "/api/conversations",
+        "GET",
+        null,
+        token
+      );
+
+      setConversations(result.conversations);
+    } catch (error) {
+      console.log("Fetch conversations error:", error.message);
+      setError(error.message || "Unable to load conversations.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Run the API request whenever this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchConversations();
+    }, [fetchConversations])
+  );
+
+  // Find the other participant in each private conversation
+  const chatList = conversations
+    .map((conversation) => {
+      const otherUser = conversation.participants.find(
+        (participant) =>
+          String(participant._id || participant.id) !==
+          String(currentUserId)
+      );
+
+      if (!otherUser) {
+        return null;
+      }
+
+      return {
+        id: conversation._id,
+        name: otherUser.name,
+        username: otherUser.username,
+        profilePicture: otherUser.profilePicture,
+      };
+    })
+    .filter((item) => item !== null);
+
+  // Filter conversations using search text
+  const filteredConversations = chatList.filter((item) => {
+    return (
+      item.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.username.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   // Theme-aware styles
   const styles = StyleSheet.create({
@@ -174,6 +201,7 @@ export default function ChatsScreen({ navigation }) {
 
     listContent: {
       paddingBottom: 130,
+      flexGrow: 1,
     },
 
     chatItem: {
@@ -203,69 +231,26 @@ export default function ChatsScreen({ navigation }) {
       fontWeight: "bold",
     },
 
-    onlineIndicator: {
-      position: "absolute",
-      width: 13,
-      height: 13,
-      borderRadius: 7,
-      backgroundColor: theme.success,
-      bottom: 0,
-      right: 0,
-      borderWidth: 2,
-      borderColor: theme.card,
-    },
-
     chatDetails: {
       flex: 1,
-    },
-
-    chatTopRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
     },
 
     chatName: {
       color: theme.text,
       fontSize: 15,
       fontWeight: "bold",
-      flex: 1,
-      marginRight: 8,
     },
 
-    chatTime: {
-      color: theme.placeholder,
-      fontSize: 11,
-    },
-
-    chatBottomRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginTop: 7,
+    chatUsername: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      marginTop: 6,
     },
 
     lastMessage: {
       color: theme.secondaryText,
-      fontSize: 13,
-      flex: 1,
-      marginRight: 8,
-    },
-
-    unreadBadge: {
-      backgroundColor: theme.highlight,
-      minWidth: 22,
-      height: 22,
-      borderRadius: 11,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingHorizontal: 6,
-    },
-
-    unreadText: {
-      color: theme.buttonText,
-      fontSize: 11,
-      fontWeight: "bold",
+      fontSize: 12,
+      marginTop: 5,
     },
 
     emptyText: {
@@ -273,6 +258,33 @@ export default function ChatsScreen({ navigation }) {
       textAlign: "center",
       marginTop: 40,
       fontSize: 14,
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    errorText: {
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginTop: 40,
+      fontSize: 14,
+    },
+
+    retryButton: {
+      alignSelf: "center",
+      marginTop: 15,
+      backgroundColor: theme.button,
+      paddingHorizontal: 22,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+
+    retryButtonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
     },
 
     newChatButton: {
@@ -298,21 +310,19 @@ export default function ChatsScreen({ navigation }) {
     },
   });
 
-  // Filter conversations using search text
-  const filteredConversations = conversations.filter((item) => {
-    return (
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.username.toLowerCase().includes(search.toLowerCase())
-    );
-  });
-
   // Display each conversation
   function renderConversation({ item }) {
     return (
       <Pressable
         style={styles.chatItem}
         onPress={() =>
-          Alert.alert("Chat", `Chat with ${item.name} will be added later.`)
+          navigation.navigate("PrivateChat", {
+            conversationId: item.id,
+            otherUser: {
+              name: item.name,
+              username: item.username,
+            },
+          })
         }
       >
         {/* Avatar */}
@@ -320,31 +330,21 @@ export default function ChatsScreen({ navigation }) {
           <Text style={styles.avatarText}>
             {item.name.charAt(0).toUpperCase()}
           </Text>
-
-          {item.online && <View style={styles.onlineIndicator} />}
         </View>
 
         {/* Conversation details */}
         <View style={styles.chatDetails}>
-          <View style={styles.chatTopRow}>
-            <Text style={styles.chatName} numberOfLines={1}>
-              {item.name}
-            </Text>
+          <Text style={styles.chatName} numberOfLines={1}>
+            {item.name}
+          </Text>
 
-            <Text style={styles.chatTime}>{item.time}</Text>
-          </View>
+          <Text style={styles.chatUsername} numberOfLines={1}>
+            @{item.username}
+          </Text>
 
-          <View style={styles.chatBottomRow}>
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.message}
-            </Text>
-
-            {item.unread > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{item.unread}</Text>
-              </View>
-            )}
-          </View>
+          <Text style={styles.lastMessage}>
+            Start a conversation
+          </Text>
         </View>
       </Pressable>
     );
@@ -364,7 +364,9 @@ export default function ChatsScreen({ navigation }) {
             style={styles.profileButton}
             onPress={() => navigation.navigate("Profile")}
           >
-            <Text style={styles.profileButtonText}>A</Text>
+            <Text style={styles.profileButtonText}>
+              {user?.name?.charAt(0).toUpperCase() || "U"}
+            </Text>
           </Pressable>
         </View>
 
@@ -401,18 +403,41 @@ export default function ChatsScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* Conversation list */}
-        <FlatList
-          data={filteredConversations}
-          renderItem={renderConversation}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No conversations found.</Text>
-          }
-        />
+        {/* Loading state */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.highlight} />
+          </View>
+        ) : error ? (
+          /* Error state */
+          <View>
+            <Text style={styles.errorText}>{error}</Text>
+
+            <Pressable
+              style={styles.retryButton}
+              onPress={fetchConversations}
+            >
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </Pressable>
+          </View>
+        ) : (
+          /* Conversation list */
+          <FlatList
+            data={filteredConversations}
+            renderItem={renderConversation}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                {search.length > 0
+                  ? "No conversations match your search."
+                  : "No conversations yet. Start a new chat!"}
+              </Text>
+            }
+          />
+        )}
 
         {/* New Chat Button */}
         <Pressable

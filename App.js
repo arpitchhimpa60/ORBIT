@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 
 import StackNavigator from "./frontend/navigation/StackNavigator";
 import ThemeProvider, { ThemeContext } from "./context/ThemeContext";
+import AuthProvider from "./context/AuthContext";
 
 function AppContent() {
   const { themeName } = useContext(ThemeContext);
@@ -23,7 +24,9 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

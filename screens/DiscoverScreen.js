@@ -1,5 +1,5 @@
 
-import { useState, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 
 import {
   View,
@@ -8,59 +8,57 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
+
+import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
-
-// Temporary sample users
-const users = [
-  {
-    id: "1",
-    name: "Rahul Sharma",
-    username: "@rahul",
-    online: true,
-  },
-  {
-    id: "2",
-    name: "Ananya Singh",
-    username: "@ananya",
-    online: true,
-  },
-  {
-    id: "3",
-    name: "Ketan Agarwal",
-    username: "@ketan",
-    online: false,
-  },
-  {
-    id: "4",
-    name: "Arnav Goyal",
-    username: "@arnav",
-    online: false,
-  },
-  {
-    id: "5",
-    name: "Asmi Mishra",
-    username: "@asmi",
-    online: true,
-  },
-  {
-    id: "6",
-    name: "Priya Verma",
-    username: "@priya",
-    online: false,
-  },
-];
+import { AuthContext } from "../context/AuthContext";
+import { apiRequest } from "../services/api";
 
 export default function DiscoverScreen() {
-  const [search, setSearch] = useState("");
-
-  // Get global theme
   const { theme } = useContext(ThemeContext);
+  const { user: currentUser } = useContext(AuthContext);
 
-  // Theme-aware styles
+  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Fetch registered users from the backend
+  async function fetchUsers() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        "/api/users",
+        "GET",
+        null,
+        token
+      );
+
+      setUsers(result.users);
+    } catch (error) {
+      setError(error.message || "Unable to fetch users.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Fetch users when Discover screen opens
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -157,18 +155,6 @@ export default function DiscoverScreen() {
       fontWeight: "bold",
     },
 
-    onlineIndicator: {
-      position: "absolute",
-      width: 13,
-      height: 13,
-      borderRadius: 7,
-      backgroundColor: theme.success,
-      bottom: 0,
-      right: 0,
-      borderWidth: 2,
-      borderColor: theme.card,
-    },
-
     userDetails: {
       flex: 1,
     },
@@ -212,6 +198,32 @@ export default function DiscoverScreen() {
       marginTop: 40,
       fontSize: 14,
     },
+
+    centerContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 25,
+    },
+
+    errorText: {
+      color: theme.text,
+      textAlign: "center",
+      fontSize: 14,
+      marginBottom: 18,
+    },
+
+    retryButton: {
+      backgroundColor: theme.button,
+      borderRadius: 10,
+      paddingHorizontal: 25,
+      paddingVertical: 12,
+    },
+
+    retryButtonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
+    },
   });
 
   // Search users by name or username
@@ -224,6 +236,10 @@ export default function DiscoverScreen() {
 
   // Display each user
   function renderUser({ item }) {
+    const displayUsername = item.username.startsWith("@")
+      ? item.username
+      : `@${item.username}`;
+
     return (
       <View style={styles.userItem}>
         {/* Avatar */}
@@ -231,8 +247,6 @@ export default function DiscoverScreen() {
           <Text style={styles.avatarText}>
             {item.name.charAt(0).toUpperCase()}
           </Text>
-
-          {item.online && <View style={styles.onlineIndicator} />}
         </View>
 
         {/* User details */}
@@ -242,23 +256,20 @@ export default function DiscoverScreen() {
           </Text>
 
           <Text style={styles.username}>
-            {item.username}
+            {displayUsername}
           </Text>
 
           <Text style={styles.status}>
-            {item.online ? "Online" : "Offline"}
+            Status unavailable
           </Text>
         </View>
 
         {/* Message button */}
         <Pressable
           style={styles.messageButton}
-          onPress={() =>
-            Alert.alert(
-              "Start Chat",
-              `Starting a conversation with ${item.name} will be added later.`
-            )
-          }
+          onPress={() => {
+            // Chat functionality will be implemented later
+          }}
         >
           <Text style={styles.messageButtonText}>
             Message
@@ -305,19 +316,49 @@ export default function DiscoverScreen() {
           </Text>
         </View>
 
-        {/* User list */}
-        <FlatList
-          data={filteredUsers}
-          renderItem={renderUser}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              No users found.
+        {/* Loading */}
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator
+              size="large"
+              color={theme.highlight}
+            />
+
+            <Text style={[styles.emptyText, { marginTop: 15 }]}>
+              Finding people...
             </Text>
-          }
-        />
+          </View>
+        ) : error ? (
+          /* Error */
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>
+              {error}
+            </Text>
+
+            <Pressable
+              style={styles.retryButton}
+              onPress={fetchUsers}
+            >
+              <Text style={styles.retryButtonText}>
+                Try Again
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          /* User list */
+          <FlatList
+            data={filteredUsers}
+            renderItem={renderUser}
+            keyExtractor={(item) => item._id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                No users found.
+              </Text>
+            }
+          />
+        )}
       </View>
     </OrbitalBackground>
   );

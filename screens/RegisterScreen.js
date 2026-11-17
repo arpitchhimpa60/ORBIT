@@ -15,6 +15,7 @@ import {
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
+import { apiRequest } from "../services/api";
 
 export default function RegisterScreen({ navigation }) {
   const { theme } = useContext(ThemeContext);
@@ -27,8 +28,8 @@ export default function RegisterScreen({ navigation }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Theme-aware styles
   const styles = StyleSheet.create({
     container: {
       flexGrow: 1,
@@ -129,6 +130,7 @@ export default function RegisterScreen({ navigation }) {
       borderRadius: 12,
       alignItems: "center",
       marginTop: 30,
+      opacity: loading ? 0.6 : 1,
     },
 
     primaryButtonText: {
@@ -155,11 +157,11 @@ export default function RegisterScreen({ navigation }) {
     },
   });
 
-  // Validate registration details
-  function handleRegister() {
+  // Register user through backend
+  async function handleRegister() {
     const nameValue = name.trim();
-    const usernameValue = username.trim();
-    const emailValue = email.trim();
+    const usernameValue = username.trim().toLowerCase();
+    const emailValue = email.trim().toLowerCase();
 
     if (
       nameValue === "" ||
@@ -172,16 +174,14 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    if (usernameValue.length < 3) {
+    if (
+      usernameValue.length < 3 ||
+      !/^[a-zA-Z0-9_]+$/.test(usernameValue)
+    ) {
       Alert.alert(
         "Invalid username",
-        "Username must contain at least 3 characters."
+        "Username must contain at least 3 characters and only letters, numbers or underscores."
       );
-      return;
-    }
-
-    if (usernameValue.includes(" ")) {
-      Alert.alert("Invalid username", "Username cannot contain spaces.");
       return;
     }
 
@@ -203,7 +203,33 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    navigation.replace("MainTabs");
+    try {
+      setLoading(true);
+
+      const result = await apiRequest("/api/auth/register", "POST", {
+        name: nameValue,
+        username: usernameValue,
+        email: emailValue,
+        password: password,
+      });
+
+      Alert.alert(
+        "Registration successful",
+        "Your ORBIT account has been created. Please log in.",
+        [
+          {
+            text: "Continue",
+            onPress: () => {
+              navigation.replace("Login");
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Registration failed", error.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -217,7 +243,6 @@ export default function RegisterScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back Button */}
           <Pressable
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -226,7 +251,6 @@ export default function RegisterScreen({ navigation }) {
           </Pressable>
 
           <View style={styles.content}>
-            {/* Logo */}
             <Text style={styles.logo}>ORBIT</Text>
 
             <Text style={styles.heading}>Create Account</Text>
@@ -235,7 +259,6 @@ export default function RegisterScreen({ navigation }) {
               Join ORBIT and stay connected.
             </Text>
 
-            {/* Registration Form */}
             <View style={styles.form}>
               <Text style={styles.label}>Full Name</Text>
 
@@ -321,14 +344,14 @@ export default function RegisterScreen({ navigation }) {
               <Pressable
                 style={styles.primaryButton}
                 onPress={handleRegister}
+                disabled={loading}
               >
                 <Text style={styles.primaryButtonText}>
-                  Create Account
+                  {loading ? "Creating Account..." : "Create Account"}
                 </Text>
               </Pressable>
             </View>
 
-            {/* Login Link */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 Already have an account?

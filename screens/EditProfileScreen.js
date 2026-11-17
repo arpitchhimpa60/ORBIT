@@ -15,20 +15,18 @@ import {
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function EditProfileScreen({ navigation, route }) {
   const { theme } = useContext(ThemeContext);
+  const { user, updateProfile } = useContext(AuthContext);
 
-  const currentProfile = route.params?.profile || {
-    name: "Arpit Chhimpa",
-    username: "@arpit",
-    about: "Building connections, one conversation at a time.",
-  };
+  const currentProfile = route.params?.profile || user;
 
-  const [name, setName] = useState(currentProfile.name);
-  const [about, setAbout] = useState(currentProfile.about);
+  const [name, setName] = useState(currentProfile?.name || "");
+  const [about, setAbout] = useState(currentProfile?.about || "");
+  const [loading, setLoading] = useState(false);
 
-  // Theme-aware styles
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -169,6 +167,7 @@ export default function EditProfileScreen({ navigation, route }) {
       paddingVertical: 15,
       alignItems: "center",
       marginTop: 5,
+      opacity: loading ? 0.6 : 1,
     },
 
     saveButtonText: {
@@ -195,24 +194,49 @@ export default function EditProfileScreen({ navigation, route }) {
     },
   });
 
-  function handleSave() {
-    if (name.trim() === "") {
+  // Save changes to the backend
+  async function handleSave() {
+    const cleanName = name.trim();
+    const cleanAbout = about.trim();
+
+    if (cleanName === "") {
       Alert.alert("Name required", "Please enter your name.");
       return;
     }
 
-    const updatedProfile = {
-      ...currentProfile,
-      name: name.trim(),
-      about: about.trim(),
-    };
+    if (cleanName.length > 40) {
+      Alert.alert("Invalid name", "Name cannot exceed 40 characters.");
+      return;
+    }
 
-    navigation.navigate("MainTabs", {
-      screen: "Profile",
-      params: {
-        updatedProfile: updatedProfile,
-      },
-    });
+    if (cleanAbout.length > 150) {
+      Alert.alert("About too long", "About cannot exceed 150 characters.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await updateProfile({
+        name: cleanName,
+        about: cleanAbout,
+      });
+
+      Alert.alert(
+        "Profile Updated",
+        "Your profile information has been saved successfully.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Update failed", error.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -284,7 +308,9 @@ export default function EditProfileScreen({ navigation, route }) {
 
           <View style={styles.disabledInput}>
             <Text style={styles.disabledText}>
-              {currentProfile.username}
+              {currentProfile?.username
+                ? `@${currentProfile.username.replace(/^@/, "")}`
+                : ""}
             </Text>
           </View>
 
@@ -314,9 +340,10 @@ export default function EditProfileScreen({ navigation, route }) {
           <Pressable
             style={styles.saveButton}
             onPress={handleSave}
+            disabled={loading}
           >
             <Text style={styles.saveButtonText}>
-              Save Changes
+              {loading ? "Saving..." : "Save Changes"}
             </Text>
           </Pressable>
 
@@ -324,6 +351,7 @@ export default function EditProfileScreen({ navigation, route }) {
           <Pressable
             style={styles.cancelButton}
             onPress={() => navigation.goBack()}
+            disabled={loading}
           >
             <Text style={styles.cancelButtonText}>
               Cancel
