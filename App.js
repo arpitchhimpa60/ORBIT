@@ -1,13 +1,17 @@
-import { NavigationContainer } from "@react-navigation/native";
-import { StatusBar } from "expo-status-bar";
+
+import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import StackNavigator from './frontend/navigation/StackNavigator';
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="light" />
-      <StackNavigator />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style="light" />
+        <StackNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

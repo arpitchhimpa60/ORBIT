@@ -1,5 +1,5 @@
 import { View, StyleSheet } from "react-native";
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 export default function OrbitalBackground({ children }) {
   return (
     <View style={styles.container}>
@@ -14,8 +14,9 @@ export default function OrbitalBackground({ children }) {
       <View style={styles.starOne} />
       <View style={styles.starTwo} />
       <View style={styles.starThree} />
-
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       {children}
+      </SafeAreaView>
     </View>
   );
 }
