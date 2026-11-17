@@ -101,15 +101,17 @@ export default function ChatsScreen({ navigation }) {
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor: theme.primary,
+      backgroundColor: theme.card,
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 2,
       borderColor: theme.highlight,
+      elevation: 4,
+      zIndex: 2,
     },
 
     profileButtonText: {
-      color: "#FFFFFF",
+      color: theme.text,
       fontSize: 20,
       fontWeight: "bold",
     },
@@ -138,6 +140,20 @@ export default function ChatsScreen({ navigation }) {
       fontSize: 14,
     },
 
+    clearButton: {
+      width: 30,
+      height: 30,
+      justifyContent: "center",
+      alignItems: "center",
+      marginLeft: 5,
+    },
+
+    clearButtonText: {
+      color: theme.secondaryText,
+      fontSize: 22,
+      fontWeight: "bold",
+    },
+
     sectionHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -157,7 +173,7 @@ export default function ChatsScreen({ navigation }) {
     },
 
     listContent: {
-      paddingBottom: 100,
+      paddingBottom: 130,
     },
 
     chatItem: {
@@ -364,6 +380,16 @@ export default function ChatsScreen({ navigation }) {
             onChangeText={setSearch}
             autoCapitalize="none"
           />
+
+          {/* Clear Search */}
+          {search.length > 0 && (
+            <Pressable
+              style={styles.clearButton}
+              onPress={() => setSearch("")}
+            >
+              <Text style={styles.clearButtonText}>×</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Conversation heading */}
@@ -382,6 +408,7 @@ export default function ChatsScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <Text style={styles.emptyText}>No conversations found.</Text>
           }
