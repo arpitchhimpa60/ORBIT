@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useContext } from "react";
 
 import {
   View,
@@ -12,24 +12,215 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from 'react-native';
+} from "react-native";
 
-import OrbitalBackground from '../components/OrbitalBackground';
+import OrbitalBackground from "../components/OrbitalBackground";
+import { ThemeContext } from "../context/ThemeContext";
 
 // Temporary sample users
 const users = [
-  { id: '1', name: 'Rahul Sharma', username: '@rahul', online: true },
-  { id: '2', name: 'Ananya Singh', username: '@ananya', online: true },
-  { id: '3', name: 'Ketan Agarwal', username: '@ketan', online: false },
-  { id: '4', name: 'Arnav Goyal', username: '@arnav', online: false },
-  { id: '5', name: 'Asmi Mishra', username: '@asmi', online: true },
-  { id: '6', name: 'Priya Verma', username: '@priya', online: false },
+  { id: "1", name: "Rahul Sharma", username: "@rahul", online: true },
+  { id: "2", name: "Ananya Singh", username: "@ananya", online: true },
+  { id: "3", name: "Ketan Agarwal", username: "@ketan", online: false },
+  { id: "4", name: "Arnav Goyal", username: "@arnav", online: false },
+  { id: "5", name: "Asmi Mishra", username: "@asmi", online: true },
+  { id: "6", name: "Priya Verma", username: "@priya", online: false },
 ];
 
 export default function CreateGroupScreen({ navigation }) {
-  const [groupName, setGroupName] = useState('');
-  const [search, setSearch] = useState('');
+  const [groupName, setGroupName] = useState("");
+  const [search, setSearch] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
+
+  // Get global theme
+  const { theme } = useContext(ThemeContext);
+
+  // Theme-aware styles
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 15,
+    },
+
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 25,
+    },
+
+    backButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 13,
+    },
+
+    backText: {
+      color: theme.text,
+      fontSize: 32,
+      lineHeight: 36,
+    },
+
+    heading: {
+      color: theme.text,
+      fontSize: 26,
+      fontWeight: "bold",
+    },
+
+    description: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      marginTop: 4,
+    },
+
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 17,
+      fontWeight: "bold",
+      marginBottom: 10,
+    },
+
+    input: {
+      backgroundColor: theme.input,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 13,
+      paddingHorizontal: 15,
+      paddingVertical: 14,
+      color: theme.text,
+      fontSize: 14,
+      marginBottom: 22,
+    },
+
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    memberCount: {
+      color: theme.secondaryText,
+      fontSize: 12,
+      marginBottom: 10,
+    },
+
+    selectedContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginBottom: 22,
+    },
+
+    memberChip: {
+      backgroundColor: theme.primary,
+      borderRadius: 18,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+
+    memberChipText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "600",
+    },
+
+    emptySelection: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      marginBottom: 22,
+    },
+
+    userItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 15,
+      padding: 12,
+      marginBottom: 10,
+    },
+
+    avatar: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+
+    avatarText: {
+      color: "#FFFFFF",
+      fontSize: 19,
+      fontWeight: "bold",
+    },
+
+    userDetails: {
+      flex: 1,
+    },
+
+    userName: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "bold",
+    },
+
+    username: {
+      color: theme.secondaryText,
+      fontSize: 12,
+      marginTop: 4,
+    },
+
+    selectButton: {
+      backgroundColor: theme.button,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    selectedButton: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+
+    selectButtonText: {
+      color: theme.buttonText,
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+
+    selectedButtonText: {
+      color: "#FFFFFF",
+    },
+
+    createButton: {
+      backgroundColor: theme.button,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: "center",
+      marginTop: 25,
+      marginBottom: 30,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    createButtonText: {
+      color: theme.buttonText,
+      fontSize: 16,
+      fontWeight: "bold",
+    },
+  });
 
   // Filter users by name or username
   const filteredUsers = users.filter((item) => {
@@ -55,38 +246,38 @@ export default function CreateGroupScreen({ navigation }) {
   }
 
   // Create group after validation
-function handleCreateGroup() {
-  if (groupName.trim() === '') {
-    Alert.alert('Group name required', 'Please enter a group name.');
-    return;
+  function handleCreateGroup() {
+    if (groupName.trim() === "") {
+      Alert.alert("Group name required", "Please enter a group name.");
+      return;
+    }
+
+    if (selectedUsers.length === 0) {
+      Alert.alert(
+        "Add members",
+        "Please select at least one other member."
+      );
+      return;
+    }
+
+    // Create a new group object
+    const newGroup = {
+      id: Date.now().toString(),
+      name: groupName.trim(),
+      members: selectedUsers.length + 1,
+      message: "Group created",
+      time: "Just now",
+      unread: 0,
+    };
+
+    // Return to Groups and pass the new group
+    navigation.navigate("MainTabs", {
+      screen: "Groups",
+      params: {
+        newGroup: newGroup,
+      },
+    });
   }
-
-  if (selectedUsers.length === 0) {
-    Alert.alert(
-      'Add members',
-      'Please select at least one other member.'
-    );
-    return;
-  }
-
-  // Create a new group object
-  const newGroup = {
-    id: Date.now().toString(),
-    name: groupName.trim(),
-    members: selectedUsers.length + 1,
-    message: 'Group created',
-    time: 'Just now',
-    unread: 0,
-  };
-
-  // Return to Groups and pass the new group
-  navigation.navigate('MainTabs', {
-    screen: 'Groups',
-    params: {
-      newGroup: newGroup,
-    },
-  });
-}
 
   // Display a user in the list
   function renderUser({ item }) {
@@ -101,7 +292,7 @@ function handleCreateGroup() {
       >
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {item.name.charAt(0)}
+            {item.name.charAt(0).toUpperCase()}
           </Text>
         </View>
 
@@ -122,7 +313,7 @@ function handleCreateGroup() {
               isSelected && styles.selectedButtonText,
             ]}
           >
-            {isSelected ? 'Selected' : 'Add'}
+            {isSelected ? "Selected" : "Add"}
           </Text>
         </View>
       </Pressable>
@@ -133,10 +324,9 @@ function handleCreateGroup() {
     <OrbitalBackground>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.container}>
-
           {/* Header */}
           <View style={styles.header}>
             <Pressable
@@ -148,6 +338,7 @@ function handleCreateGroup() {
 
             <View>
               <Text style={styles.heading}>Create Group</Text>
+
               <Text style={styles.description}>
                 Bring people together.
               </Text>
@@ -164,7 +355,7 @@ function handleCreateGroup() {
             <TextInput
               style={styles.input}
               placeholder="Enter group name"
-              placeholderTextColor="#BDB5E8"
+              placeholderTextColor={theme.placeholder}
               value={groupName}
               onChangeText={setGroupName}
               maxLength={40}
@@ -202,14 +393,12 @@ function handleCreateGroup() {
             )}
 
             {/* Search users */}
-            <Text style={styles.sectionTitle}>
-              Add members
-            </Text>
+            <Text style={styles.sectionTitle}>Add members</Text>
 
             <TextInput
               style={styles.input}
               placeholder="Search by name or username..."
-              placeholderTextColor="#BDB5E8"
+              placeholderTextColor={theme.placeholder}
               value={search}
               onChangeText={setSearch}
               autoCapitalize="none"
@@ -221,6 +410,7 @@ function handleCreateGroup() {
               renderItem={renderUser}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
+              keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
                 <Text style={styles.emptySelection}>
                   No users found.
@@ -237,188 +427,9 @@ function handleCreateGroup() {
                 Create Group
               </Text>
             </Pressable>
-
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </OrbitalBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 15,
-  },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 25,
-  },
-
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: '#40318C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-
-  backText: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    lineHeight: 36,
-  },
-
-  heading: {
-    color: '#FFFFFF',
-    fontSize: 25,
-    fontWeight: 'bold',
-  },
-
-  description: {
-    color: '#D8D2FF',
-    fontSize: 12,
-    marginTop: 4,
-  },
-
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-
-  input: {
-    backgroundColor: '#40318C',
-    borderWidth: 1,
-    borderColor: '#7669D8',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginBottom: 22,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  memberCount: {
-    color: '#D8D2FF',
-    fontSize: 12,
-    marginBottom: 10,
-  },
-
-  selectedContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 22,
-  },
-
-  memberChip: {
-    backgroundColor: '#7669D8',
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-
-  memberChipText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
-  emptySelection: {
-    color: '#BDB5E8',
-    fontSize: 13,
-    marginBottom: 22,
-  },
-
-  userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.12)',
-  },
-
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#7669D8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-
-  userDetails: {
-    flex: 1,
-  },
-
-  userName: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  username: {
-    color: '#D8D2FF',
-    fontSize: 12,
-    marginTop: 3,
-  },
-
-  selectButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 9,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-
-  selectedButton: {
-    backgroundColor: '#7669D8',
-    borderWidth: 1,
-    borderColor: '#A99EFF',
-  },
-
-  selectButtonText: {
-    color: '#302078',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-
-  selectedButtonText: {
-    color: '#FFFFFF',
-  },
-
-  createButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 25,
-    marginBottom: 30,
-  },
-
-  createButtonText: {
-    color: '#302078',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});

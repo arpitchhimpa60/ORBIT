@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 
+import { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
 } from "react-native";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import { ThemeContext } from "../context/ThemeContext";
 
 export default function ProfileScreen({ navigation, route }) {
-  const [theme, setTheme] = useState("Dark");
+  // Get global theme information
+  const { theme, themeName, setThemeName } = useContext(ThemeContext);
 
   // Temporary profile information
   const [user, setUser] = useState({
@@ -37,6 +39,227 @@ export default function ProfileScreen({ navigation, route }) {
   function showComingSoon(feature) {
     Alert.alert(feature, `${feature} will be implemented in the next step.`);
   }
+
+  // Theme-aware styles
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 25,
+    },
+
+    header: {
+      marginBottom: 25,
+    },
+
+    heading: {
+      color: theme.text,
+      fontSize: 30,
+      fontWeight: "bold",
+    },
+
+    description: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      marginTop: 6,
+    },
+
+    profileCard: {
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 20,
+      padding: 22,
+      alignItems: "center",
+      marginBottom: 28,
+    },
+
+    avatar: {
+      width: 90,
+      height: 90,
+      borderRadius: 45,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 15,
+      borderWidth: 3,
+      borderColor: theme.highlight,
+    },
+
+    avatarText: {
+      color: "#FFFFFF",
+      fontSize: 38,
+      fontWeight: "bold",
+    },
+
+    name: {
+      color: theme.text,
+      fontSize: 21,
+      fontWeight: "bold",
+    },
+
+    username: {
+      color: theme.secondaryText,
+      fontSize: 14,
+      marginTop: 5,
+    },
+
+    about: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      textAlign: "center",
+      marginTop: 15,
+      lineHeight: 20,
+    },
+
+    editButton: {
+      backgroundColor: theme.button,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 30,
+      marginTop: 20,
+    },
+
+    editButtonText: {
+      color: theme.buttonText,
+      fontSize: 14,
+      fontWeight: "bold",
+    },
+
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 18,
+      fontWeight: "bold",
+      marginBottom: 12,
+    },
+
+    settingsCard: {
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 16,
+      paddingHorizontal: 15,
+      paddingVertical: 5,
+      marginBottom: 25,
+    },
+
+    settingItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 15,
+    },
+
+    settingIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+
+    iconText: {
+      fontSize: 19,
+      color: "#FFFFFF",
+    },
+
+    settingDetails: {
+      flex: 1,
+    },
+
+    settingName: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    settingDescription: {
+      color: theme.secondaryText,
+      fontSize: 11,
+      marginTop: 4,
+    },
+
+    arrow: {
+      color: theme.secondaryText,
+      fontSize: 28,
+      marginLeft: 8,
+    },
+
+    separator: {
+      height: 1,
+      backgroundColor: theme.divider,
+    },
+
+    themeHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 15,
+    },
+
+    themeOptions: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 5,
+    },
+
+    themeButton: {
+      flex: 1,
+      backgroundColor: theme.secondaryBackground,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+
+    activeTheme: {
+      backgroundColor: theme.button,
+      borderColor: theme.button,
+    },
+
+    themeButtonText: {
+      color: theme.text,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+
+    activeThemeText: {
+      color: theme.buttonText,
+    },
+
+    themeNote: {
+      color: theme.secondaryText,
+      fontSize: 11,
+      marginTop: 12,
+      marginBottom: 15,
+    },
+
+    footer: {
+      alignItems: "center",
+      paddingVertical: 25,
+      marginBottom: 15,
+    },
+
+    footerTitle: {
+      color: theme.text,
+      fontSize: 22,
+      fontWeight: "bold",
+      letterSpacing: 4,
+    },
+
+    footerDescription: {
+      color: theme.secondaryText,
+      fontSize: 12,
+      marginTop: 5,
+    },
+
+    version: {
+      color: theme.placeholder,
+      fontSize: 10,
+      marginTop: 10,
+    },
+  });
 
   return (
     <OrbitalBackground>
@@ -148,14 +371,14 @@ export default function ProfileScreen({ navigation, route }) {
             <Pressable
               style={[
                 styles.themeButton,
-                theme === "Light" && styles.activeTheme,
+                themeName === "Light" && styles.activeTheme,
               ]}
-              onPress={() => setTheme("Light")}
+              onPress={() => setThemeName("Light")}
             >
               <Text
                 style={[
                   styles.themeButtonText,
-                  theme === "Light" && styles.activeThemeText,
+                  themeName === "Light" && styles.activeThemeText,
                 ]}
               >
                 ☀ Light
@@ -165,14 +388,14 @@ export default function ProfileScreen({ navigation, route }) {
             <Pressable
               style={[
                 styles.themeButton,
-                theme === "Dark" && styles.activeTheme,
+                themeName === "Dark" && styles.activeTheme,
               ]}
-              onPress={() => setTheme("Dark")}
+              onPress={() => setThemeName("Dark")}
             >
               <Text
                 style={[
                   styles.themeButtonText,
-                  theme === "Dark" && styles.activeThemeText,
+                  themeName === "Dark" && styles.activeThemeText,
                 ]}
               >
                 ☾ Dark
@@ -180,7 +403,9 @@ export default function ProfileScreen({ navigation, route }) {
             </Pressable>
           </View>
 
-          <Text style={styles.themeNote}>Selected preference: {theme}</Text>
+          <Text style={styles.themeNote}>
+            Selected preference: {themeName}
+          </Text>
         </View>
 
         {/* App Information */}
@@ -197,223 +422,3 @@ export default function ProfileScreen({ navigation, route }) {
     </OrbitalBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 25,
-  },
-
-  header: {
-    marginBottom: 25,
-  },
-
-  heading: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "bold",
-  },
-
-  description: {
-    color: "#D8D2FF",
-    fontSize: 13,
-    marginTop: 6,
-  },
-
-  profileCard: {
-    backgroundColor: "#40318C",
-    borderWidth: 1,
-    borderColor: "#6258E8",
-    borderRadius: 20,
-    padding: 22,
-    alignItems: "center",
-    marginBottom: 28,
-  },
-
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#7669D8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-    borderWidth: 3,
-    borderColor: "#A99EFF",
-  },
-
-  avatarText: {
-    color: "#FFFFFF",
-    fontSize: 38,
-    fontWeight: "bold",
-  },
-
-  name: {
-    color: "#FFFFFF",
-    fontSize: 21,
-    fontWeight: "bold",
-  },
-
-  username: {
-    color: "#D8D2FF",
-    fontSize: 14,
-    marginTop: 5,
-  },
-
-  about: {
-    color: "#D8D2FF",
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 15,
-    lineHeight: 20,
-  },
-
-  editButton: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    marginTop: 20,
-  },
-
-  editButtonText: {
-    color: "#302078",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-
-  settingsCard: {
-    backgroundColor: "#40318C",
-    borderWidth: 1,
-    borderColor: "#6258E8",
-    borderRadius: 16,
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    marginBottom: 25,
-  },
-
-  settingItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-  },
-
-  settingIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#7669D8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-
-  iconText: {
-    fontSize: 19,
-    color: "#FFFFFF",
-  },
-
-  settingDetails: {
-    flex: 1,
-  },
-
-  settingName: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  settingDescription: {
-    color: "#D8D2FF",
-    fontSize: 11,
-    marginTop: 4,
-  },
-
-  arrow: {
-    color: "#D8D2FF",
-    fontSize: 28,
-    marginLeft: 8,
-  },
-
-  separator: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-
-  themeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-  },
-
-  themeOptions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 5,
-  },
-
-  themeButton: {
-    flex: 1,
-    backgroundColor: "#302078",
-    borderWidth: 1,
-    borderColor: "#7669D8",
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-
-  activeTheme: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#FFFFFF",
-  },
-
-  themeButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  activeThemeText: {
-    color: "#302078",
-  },
-
-  themeNote: {
-    color: "#D8D2FF",
-    fontSize: 11,
-    marginTop: 12,
-    marginBottom: 15,
-  },
-
-  footer: {
-    alignItems: "center",
-    paddingVertical: 25,
-    marginBottom: 15,
-  },
-
-  footerTitle: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "bold",
-    letterSpacing: 4,
-  },
-
-  footerDescription: {
-    color: "#D8D2FF",
-    fontSize: 12,
-    marginTop: 5,
-  },
-
-  version: {
-    color: "#BDB5E8",
-    fontSize: 10,
-    marginTop: 10,
-  },
-});

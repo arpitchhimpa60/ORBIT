@@ -1,17 +1,29 @@
 
-import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { useContext } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
-import StackNavigator from './frontend/navigation/StackNavigator';
+import StackNavigator from "./frontend/navigation/StackNavigator";
+import ThemeProvider, { ThemeContext } from "./context/ThemeContext";
 
-export default function App() {
+function AppContent() {
+  const { themeName } = useContext(ThemeContext);
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <StatusBar style="light" />
+        <StatusBar style={themeName === "Dark" ? "light" : "dark"} />
         <StackNavigator />
       </NavigationContainer>
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

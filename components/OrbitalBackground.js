@@ -1,21 +1,67 @@
+
+import { useContext } from "react";
 import { View, StyleSheet } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { ThemeContext } from "../context/ThemeContext";
+
 export default function OrbitalBackground({ children }) {
+  const { theme } = useContext(ThemeContext);
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.background },
+      ]}
+    >
       {/* Orbital rings */}
-      <View style={styles.orbitOne} />
-      <View style={styles.orbitTwo} />
+      <View
+        style={[
+          styles.orbitOne,
+          { borderColor: theme.orbit },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.orbitTwo,
+          { borderColor: theme.orbit },
+        ]}
+      />
 
       {/* Planet */}
-      <View style={styles.planet} />
+      <View
+        style={[
+          styles.planet,
+          { backgroundColor: theme.planet },
+        ]}
+      />
 
       {/* Stars */}
-      <View style={styles.starOne} />
-      <View style={styles.starTwo} />
-      <View style={styles.starThree} />
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-      {children}
+      <View
+        style={[
+          styles.starOne,
+          { backgroundColor: theme.star },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.starTwo,
+          { backgroundColor: theme.highlight },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.starThree,
+          { backgroundColor: theme.star },
+        ]}
+      />
+
+      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+        {children}
       </SafeAreaView>
     </View>
   );
@@ -24,7 +70,6 @@ export default function OrbitalBackground({ children }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#302078",
     overflow: "hidden",
   },
 
@@ -34,7 +79,6 @@ const styles = StyleSheet.create({
     height: 380,
     borderRadius: 190,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
     top: -180,
     right: -170,
   },
@@ -45,7 +89,6 @@ const styles = StyleSheet.create({
     height: 280,
     borderRadius: 140,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
     top: -120,
     right: -120,
   },
@@ -55,7 +98,6 @@ const styles = StyleSheet.create({
     width: 55,
     height: 55,
     borderRadius: 30,
-    backgroundColor: "#7669D8",
     top: 110,
     right: 45,
   },
@@ -65,7 +107,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 5,
-    backgroundColor: "#FFFFFF",
     top: 230,
     left: 35,
   },
@@ -75,7 +116,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 5,
-    backgroundColor: "#C7BEFF",
     top: 350,
     right: 35,
   },
@@ -85,7 +125,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 5,
-    backgroundColor: "#FFFFFF",
     bottom: 100,
     left: 65,
   },

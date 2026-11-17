@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useContext } from "react";
 
 import {
   View,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import { ThemeContext } from "../context/ThemeContext";
 
 // Temporary conversation data
 const conversations = [
@@ -64,7 +66,223 @@ const conversations = [
 export default function ChatsScreen({ navigation }) {
   const [search, setSearch] = useState("");
 
-  // Filter conversations using the search text
+  // Get global theme
+  const { theme } = useContext(ThemeContext);
+
+  // Theme-aware styles
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 25,
+    },
+
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 25,
+    },
+
+    logo: {
+      color: theme.text,
+      fontSize: 30,
+      fontWeight: "bold",
+      letterSpacing: 3,
+    },
+
+    subtitle: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      marginTop: 5,
+    },
+
+    profileButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: theme.highlight,
+    },
+
+    profileButtonText: {
+      color: "#FFFFFF",
+      fontSize: 20,
+      fontWeight: "bold",
+    },
+
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.input,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      paddingHorizontal: 15,
+      marginBottom: 25,
+    },
+
+    searchIcon: {
+      color: theme.secondaryText,
+      fontSize: 25,
+      marginRight: 10,
+    },
+
+    searchInput: {
+      flex: 1,
+      paddingVertical: 15,
+      color: theme.text,
+      fontSize: 14,
+    },
+
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 19,
+      fontWeight: "bold",
+    },
+
+    chatCount: {
+      color: theme.secondaryText,
+      fontSize: 12,
+    },
+
+    listContent: {
+      paddingBottom: 100,
+    },
+
+    chatItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 12,
+    },
+
+    avatarContainer: {
+      width: 55,
+      height: 55,
+      borderRadius: 28,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 13,
+    },
+
+    avatarText: {
+      color: "#FFFFFF",
+      fontSize: 22,
+      fontWeight: "bold",
+    },
+
+    onlineIndicator: {
+      position: "absolute",
+      width: 13,
+      height: 13,
+      borderRadius: 7,
+      backgroundColor: theme.success,
+      bottom: 0,
+      right: 0,
+      borderWidth: 2,
+      borderColor: theme.card,
+    },
+
+    chatDetails: {
+      flex: 1,
+    },
+
+    chatTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    chatName: {
+      color: theme.text,
+      fontSize: 15,
+      fontWeight: "bold",
+      flex: 1,
+      marginRight: 8,
+    },
+
+    chatTime: {
+      color: theme.placeholder,
+      fontSize: 11,
+    },
+
+    chatBottomRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 7,
+    },
+
+    lastMessage: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      flex: 1,
+      marginRight: 8,
+    },
+
+    unreadBadge: {
+      backgroundColor: theme.highlight,
+      minWidth: 22,
+      height: 22,
+      borderRadius: 11,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 6,
+    },
+
+    unreadText: {
+      color: theme.buttonText,
+      fontSize: 11,
+      fontWeight: "bold",
+    },
+
+    emptyText: {
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginTop: 40,
+      fontSize: 14,
+    },
+
+    newChatButton: {
+      position: "absolute",
+      bottom: 20,
+      right: 20,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: theme.button,
+      justifyContent: "center",
+      alignItems: "center",
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    newChatButtonText: {
+      color: theme.buttonText,
+      fontSize: 36,
+      fontWeight: "400",
+      lineHeight: 40,
+    },
+  });
+
+  // Filter conversations using search text
   const filteredConversations = conversations.filter((item) => {
     return (
       item.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -83,7 +301,9 @@ export default function ChatsScreen({ navigation }) {
       >
         {/* Avatar */}
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+          <Text style={styles.avatarText}>
+            {item.name.charAt(0).toUpperCase()}
+          </Text>
 
           {item.online && <View style={styles.onlineIndicator} />}
         </View>
@@ -91,7 +311,9 @@ export default function ChatsScreen({ navigation }) {
         {/* Conversation details */}
         <View style={styles.chatDetails}>
           <View style={styles.chatTopRow}>
-            <Text style={styles.chatName}>{item.name}</Text>
+            <Text style={styles.chatName} numberOfLines={1}>
+              {item.name}
+            </Text>
 
             <Text style={styles.chatTime}>{item.time}</Text>
           </View>
@@ -137,7 +359,7 @@ export default function ChatsScreen({ navigation }) {
           <TextInput
             style={styles.searchInput}
             placeholder="Search conversations..."
-            placeholderTextColor="#BDB5E8"
+            placeholderTextColor={theme.placeholder}
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
@@ -164,6 +386,8 @@ export default function ChatsScreen({ navigation }) {
             <Text style={styles.emptyText}>No conversations found.</Text>
           }
         />
+
+        {/* New Chat Button */}
         <Pressable
           style={styles.newChatButton}
           onPress={() => navigation.navigate("Discover")}
@@ -174,207 +398,3 @@ export default function ChatsScreen({ navigation }) {
     </OrbitalBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 25,
-  },
-
-  logo: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "bold",
-    letterSpacing: 3,
-  },
-
-  subtitle: {
-    color: "#D8D2FF",
-    fontSize: 13,
-    marginTop: 4,
-  },
-
-  profileButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 25,
-    backgroundColor: "#7669D8",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#A99EFF",
-  },
-
-  profileButtonText: {
-    color: "#FFFFFF",
-    fontSize: 19,
-    fontWeight: "bold",
-  },
-
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#40318C",
-    borderWidth: 1,
-    borderColor: "#7669D8",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    marginBottom: 25,
-  },
-
-  searchIcon: {
-    color: "#D8D2FF",
-    fontSize: 25,
-    marginRight: 10,
-  },
-
-  searchInput: {
-    flex: 1,
-    paddingVertical: 14,
-    color: "#FFFFFF",
-    fontSize: 14,
-  },
-
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 19,
-    fontWeight: "bold",
-  },
-
-  chatCount: {
-    color: "#D8D2FF",
-    fontSize: 12,
-  },
-
-  listContent: {
-    paddingBottom: 20,
-  },
-
-  chatItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.12)",
-  },
-
-  avatarContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#7669D8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 13,
-  },
-
-  avatarText: {
-    color: "#FFFFFF",
-    fontSize: 21,
-    fontWeight: "bold",
-  },
-
-  onlineIndicator: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#4ADE80",
-    bottom: 0,
-    right: 0,
-    borderWidth: 2,
-    borderColor: "#302078",
-  },
-
-  chatDetails: {
-    flex: 1,
-  },
-
-  chatTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  chatName: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  chatTime: {
-    color: "#BDB5E8",
-    fontSize: 11,
-  },
-
-  chatBottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 7,
-  },
-
-  lastMessage: {
-    color: "#D8D2FF",
-    fontSize: 13,
-    flex: 1,
-    marginRight: 8,
-  },
-
-  unreadBadge: {
-    backgroundColor: "#A99EFF",
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 5,
-  },
-
-  unreadText: {
-    color: "#302078",
-    fontSize: 11,
-    fontWeight: "bold",
-  },
-
-  emptyText: {
-    color: "#D8D2FF",
-    textAlign: "center",
-    marginTop: 40,
-    fontSize: 14,
-  },
-  newChatButton: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-  },
-
-  newChatButtonText: {
-    color: "#302078",
-    fontSize: 34,
-    fontWeight: "400",
-    lineHeight: 38,
-  },
-});

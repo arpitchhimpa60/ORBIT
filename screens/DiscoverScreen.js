@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useContext } from "react";
 
 import {
   View,
@@ -9,52 +9,210 @@ import {
   FlatList,
   Pressable,
   Alert,
-} from 'react-native';
+} from "react-native";
 
-import OrbitalBackground from '../components/OrbitalBackground';
+import OrbitalBackground from "../components/OrbitalBackground";
+import { ThemeContext } from "../context/ThemeContext";
 
 // Temporary sample users
 const users = [
   {
-    id: '1',
-    name: 'Rahul Sharma',
-    username: '@rahul',
+    id: "1",
+    name: "Rahul Sharma",
+    username: "@rahul",
     online: true,
   },
   {
-    id: '2',
-    name: 'Ananya Singh',
-    username: '@ananya',
+    id: "2",
+    name: "Ananya Singh",
+    username: "@ananya",
     online: true,
   },
   {
-    id: '3',
-    name: 'Ketan Agarwal',
-    username: '@ketan',
+    id: "3",
+    name: "Ketan Agarwal",
+    username: "@ketan",
     online: false,
   },
   {
-    id: '4',
-    name: 'Arnav Goyal',
-    username: '@arnav',
+    id: "4",
+    name: "Arnav Goyal",
+    username: "@arnav",
     online: false,
   },
   {
-    id: '5',
-    name: 'Asmi Mishra',
-    username: '@asmi',
+    id: "5",
+    name: "Asmi Mishra",
+    username: "@asmi",
     online: true,
   },
   {
-    id: '6',
-    name: 'Priya Verma',
-    username: '@priya',
+    id: "6",
+    name: "Priya Verma",
+    username: "@priya",
     online: false,
   },
 ];
 
 export default function DiscoverScreen() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
+
+  // Get global theme
+  const { theme } = useContext(ThemeContext);
+
+  // Theme-aware styles
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 25,
+    },
+
+    header: {
+      marginBottom: 25,
+    },
+
+    heading: {
+      color: theme.text,
+      fontSize: 30,
+      fontWeight: "bold",
+    },
+
+    description: {
+      color: theme.secondaryText,
+      fontSize: 13,
+      marginTop: 6,
+    },
+
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.input,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      paddingHorizontal: 15,
+      marginBottom: 25,
+    },
+
+    searchIcon: {
+      color: theme.secondaryText,
+      fontSize: 25,
+      marginRight: 10,
+    },
+
+    searchInput: {
+      flex: 1,
+      paddingVertical: 15,
+      color: theme.text,
+      fontSize: 14,
+    },
+
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 19,
+      fontWeight: "bold",
+    },
+
+    userCount: {
+      color: theme.secondaryText,
+      fontSize: 12,
+    },
+
+    listContent: {
+      paddingBottom: 25,
+    },
+
+    userItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 12,
+    },
+
+    avatarContainer: {
+      width: 55,
+      height: 55,
+      borderRadius: 28,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 13,
+    },
+
+    avatarText: {
+      color: "#FFFFFF",
+      fontSize: 22,
+      fontWeight: "bold",
+    },
+
+    onlineIndicator: {
+      position: "absolute",
+      width: 13,
+      height: 13,
+      borderRadius: 7,
+      backgroundColor: theme.success,
+      bottom: 0,
+      right: 0,
+      borderWidth: 2,
+      borderColor: theme.card,
+    },
+
+    userDetails: {
+      flex: 1,
+    },
+
+    userName: {
+      color: theme.text,
+      fontSize: 15,
+      fontWeight: "bold",
+    },
+
+    username: {
+      color: theme.secondaryText,
+      fontSize: 12,
+      marginTop: 4,
+    },
+
+    status: {
+      color: theme.placeholder,
+      fontSize: 11,
+      marginTop: 4,
+    },
+
+    messageButton: {
+      backgroundColor: theme.button,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    messageButtonText: {
+      color: theme.buttonText,
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+
+    emptyText: {
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginTop: 40,
+      fontSize: 14,
+    },
+  });
 
   // Search users by name or username
   const filteredUsers = users.filter((item) => {
@@ -68,18 +226,18 @@ export default function DiscoverScreen() {
   function renderUser({ item }) {
     return (
       <View style={styles.userItem}>
+        {/* Avatar */}
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarText}>
-            {item.name.charAt(0)}
+            {item.name.charAt(0).toUpperCase()}
           </Text>
 
-          {item.online && (
-            <View style={styles.onlineIndicator} />
-          )}
+          {item.online && <View style={styles.onlineIndicator} />}
         </View>
 
+        {/* User details */}
         <View style={styles.userDetails}>
-          <Text style={styles.userName}>
+          <Text style={styles.userName} numberOfLines={1}>
             {item.name}
           </Text>
 
@@ -88,15 +246,16 @@ export default function DiscoverScreen() {
           </Text>
 
           <Text style={styles.status}>
-            {item.online ? 'Online' : 'Offline'}
+            {item.online ? "Online" : "Offline"}
           </Text>
         </View>
 
+        {/* Message button */}
         <Pressable
           style={styles.messageButton}
           onPress={() =>
             Alert.alert(
-              'Start Chat',
+              "Start Chat",
               `Starting a conversation with ${item.name} will be added later.`
             )
           }
@@ -112,7 +271,6 @@ export default function DiscoverScreen() {
   return (
     <OrbitalBackground>
       <View style={styles.container}>
-
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.heading}>Discover</Text>
@@ -129,7 +287,7 @@ export default function DiscoverScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or username..."
-            placeholderTextColor="#BDB5E8"
+            placeholderTextColor={theme.placeholder}
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
@@ -160,156 +318,7 @@ export default function DiscoverScreen() {
             </Text>
           }
         />
-
       </View>
     </OrbitalBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 25,
-  },
-
-  header: {
-    marginBottom: 25,
-  },
-
-  heading: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: 'bold',
-  },
-
-  description: {
-    color: '#D8D2FF',
-    fontSize: 13,
-    marginTop: 6,
-  },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#40318C',
-    borderWidth: 1,
-    borderColor: '#7669D8',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    marginBottom: 25,
-  },
-
-  searchIcon: {
-    color: '#D8D2FF',
-    fontSize: 25,
-    marginRight: 10,
-  },
-
-  searchInput: {
-    flex: 1,
-    paddingVertical: 14,
-    color: '#FFFFFF',
-    fontSize: 14,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: 'bold',
-  },
-
-  userCount: {
-    color: '#D8D2FF',
-    fontSize: 12,
-  },
-
-  listContent: {
-    paddingBottom: 20,
-  },
-
-  userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.12)',
-  },
-
-  avatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#7669D8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-
-  onlineIndicator: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#4ADE80',
-    bottom: 0,
-    right: 0,
-    borderWidth: 2,
-    borderColor: '#302078',
-  },
-
-  userDetails: {
-    flex: 1,
-  },
-
-  userName: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  username: {
-    color: '#D8D2FF',
-    fontSize: 12,
-    marginTop: 3,
-  },
-
-  status: {
-    color: '#BDB5E8',
-    fontSize: 11,
-    marginTop: 3,
-  },
-
-  messageButton: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    borderRadius: 10,
-  },
-
-  messageButtonText: {
-    color: '#302078',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-
-  emptyText: {
-    color: '#D8D2FF',
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 14,
-  },
-});
