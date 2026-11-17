@@ -1,41 +1,37 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // Register a new user
 const registerUser = async (req, res) => {
   try {
     const { name, username, email, password } = req.body;
 
-    // Check required fields
     if (!name || !username || !email || !password) {
       return res.status(400).json({
         message: "Please provide all required fields",
       });
     }
 
-    // Remove unnecessary spaces
     const cleanName = name.trim();
     const cleanUsername = username.trim().toLowerCase();
     const cleanEmail = email.trim().toLowerCase();
 
-    // Validate name
     if (!cleanName) {
       return res.status(400).json({
         message: "Name cannot be empty",
       });
     }
 
-    // Validate username
     if (
       cleanUsername.length < 3 ||
       !/^[a-zA-Z0-9_]+$/.test(cleanUsername)
     ) {
       return res.status(400).json({
-        message: "Username must be at least 3 characters and contain only letters, numbers or underscores",
+        message: "Invalid username",
       });
     }
 
-    // Validate email
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailPattern.test(cleanEmail)) {
@@ -44,14 +40,12 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Validate password
     if (password.length < 8) {
       return res.status(400).json({
         message: "Password must contain at least 8 characters",
       });
     }
 
-    // Check whether email or username already exists
     const existingUser = await User.findOne({
       $or: [
         { email: cleanEmail },
@@ -71,10 +65,8 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
     const newUser = await User.create({
       name: cleanName,
       username: cleanUsername,
@@ -82,7 +74,6 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
     });
 
-    // Send response without password
     res.status(201).json({
       message: "User registered successfully",
       user: {
@@ -95,7 +86,6 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    // Handle duplicate email or username errors
     if (error.code === 11000) {
       return res.status(409).json({
         message: "Email or username already exists",
@@ -110,4 +100,73 @@ const registerUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser };
+// Login an existing user
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Please provide email and password",
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Find user by email
+    const user = await User.findOne({
+      email: cleanEmail,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // Compare entered password with stored hash
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // Send token and user details
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        about: user.about,
+        profilePicture: user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.log("Login error:", error.message);
+
+    res.status(500).json({
+      message: "Server error during login",
+    });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+};
