@@ -58,7 +58,7 @@ export default function AuthProvider({ children }) {
     connectSocket(token);
   }
 
-  // Update the user's profile on the backend
+  // Update the user's name and About information
   async function updateProfile(profileData) {
     const token = await SecureStore.getItemAsync("userToken");
 
@@ -73,6 +73,30 @@ export default function AuthProvider({ children }) {
       token
     );
 
+    setUser(result.user);
+
+    return result.user;
+  }
+
+  // Upload and update the user's profile picture
+  async function updateProfilePicture(imageBase64, mimeType) {
+    const token = await SecureStore.getItemAsync("userToken");
+
+    if (!token) {
+      throw new Error("Please log in again.");
+    }
+
+    const result = await apiRequest(
+      "/api/auth/profile-picture",
+      "PATCH",
+      {
+        imageBase64,
+        mimeType,
+      },
+      token
+    );
+
+    // Update global user data
     setUser(result.user);
 
     return result.user;
@@ -94,6 +118,7 @@ export default function AuthProvider({ children }) {
         isCheckingAuth,
         login,
         updateProfile,
+        updateProfilePicture,
         logout,
       }}
     >

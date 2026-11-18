@@ -12,6 +12,7 @@ export default function ImagePreview({
   onCancel,
   onSend,
   theme,
+  actionLabel = "Send",
 }) {
   if (!image) {
     return null;
@@ -90,7 +91,7 @@ export default function ImagePreview({
         </Pressable>
 
         <Pressable onPress={onSend} style={styles.sendButton}>
-          <Text style={styles.sendText}>Send</Text>
+          <Text style={styles.sendText}>{actionLabel}</Text>
         </Pressable>
       </View>
     </View>

@@ -9,6 +9,10 @@ const {
   updateProfile,
 } = require("../controllers/authController");
 
+const {
+  updateProfilePicture,
+} = require("../controllers/profilePictureController");
+
 const authMiddleware = require("../middleware/authMiddleware");
 
 // Register
@@ -34,5 +38,12 @@ router.get("/me", authMiddleware, (req, res) => {
 
 // Update logged-in user's profile
 router.patch("/me", authMiddleware, updateProfile);
+
+// Update logged-in user's profile picture
+router.patch(
+  "/profile-picture",
+  authMiddleware,
+  updateProfilePicture
+);
 
 module.exports = router;

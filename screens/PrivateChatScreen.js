@@ -26,6 +26,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import UserAvatar from "../components/UserAvatar";
 import ImagePicker from "../components/imagePicker/ImagePicker";
 import ImagePreview from "../components/imagePicker/ImagePreview";
 
@@ -416,6 +417,14 @@ export default function PrivateChatScreen({ navigation, route }) {
       fontSize: 28,
     },
 
+    headerAvatar: {
+      marginRight: 12,
+    },
+
+    headerUserDetails: {
+      flex: 1,
+    },
+
     userName: {
       color: theme.text,
       fontSize: 19,
@@ -760,10 +769,22 @@ export default function PrivateChatScreen({ navigation, route }) {
               <Text style={styles.backText}>‹</Text>
             </Pressable>
 
-            <View>
-              <Text style={styles.userName}>{otherUser.name}</Text>
+            {/* Other user's profile picture */}
+            <View style={styles.headerAvatar}>
+              <UserAvatar
+                user={otherUser}
+                size={45}
+                theme={theme}
+              />
+            </View>
 
-              <Text style={styles.username}>
+            {/* Other user's details */}
+            <View style={styles.headerUserDetails}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {otherUser.name}
+              </Text>
+
+              <Text style={styles.username} numberOfLines={1}>
                 @{otherUser.username}
               </Text>
             </View>

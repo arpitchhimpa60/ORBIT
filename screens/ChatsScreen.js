@@ -15,6 +15,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import UserAvatar from "../components/UserAvatar";
+
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
@@ -177,7 +179,11 @@ export default function ChatsScreen({ navigation }) {
             ? "You"
             : lastMessage.sender?.name || "User";
 
-        messagePreview = `${senderName}: ${lastMessage.text}`;
+        messagePreview = `${senderName}: ${
+          lastMessage.type === "image"
+            ? "Photo"
+            : lastMessage.text || "Message"
+        }`;
       }
 
       const messageTime = lastMessage
@@ -191,6 +197,7 @@ export default function ChatsScreen({ navigation }) {
           type: "group",
           name: conversation.groupName || "Unnamed Group",
           username: "",
+          profilePicture: "",
           memberCount: conversation.participants.length,
           unreadCount: conversation.unreadCount || 0,
           lastMessage: messagePreview,
@@ -214,6 +221,15 @@ export default function ChatsScreen({ navigation }) {
         type: "private",
         name: otherUser.name,
         username: otherUser.username,
+        profilePicture: otherUser.profilePicture || "",
+        otherUser: {
+          _id: otherUser._id || otherUser.id,
+          name: otherUser.name,
+          username: otherUser.username,
+          profilePicture: otherUser.profilePicture || "",
+          isOnline: otherUser.isOnline,
+          lastSeen: otherUser.lastSeen,
+        },
         memberCount: 0,
         unreadCount: conversation.unreadCount || 0,
         lastMessage: messagePreview,
@@ -369,6 +385,10 @@ export default function ChatsScreen({ navigation }) {
       fontWeight: "bold",
     },
 
+    privateAvatarWrapper: {
+      marginRight: 13,
+    },
+
     chatDetails: {
       flex: 1,
     },
@@ -488,10 +508,7 @@ export default function ChatsScreen({ navigation }) {
     } else {
       navigation.navigate("PrivateChat", {
         conversationId: item.id,
-        otherUser: {
-          name: item.name,
-          username: item.username,
-        },
+        otherUser: item.otherUser,
       });
     }
   }
@@ -504,16 +521,29 @@ export default function ChatsScreen({ navigation }) {
         onPress={() => openConversation(item)}
       >
         {/* Avatar */}
-        <View
-          style={[
-            styles.avatarContainer,
-            item.type === "group" && styles.groupAvatar,
-          ]}
-        >
-          <Text style={styles.avatarText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        {item.type === "private" ? (
+          <View style={styles.privateAvatarWrapper}>
+            <UserAvatar
+              user={{
+                name: item.name,
+                profilePicture: item.profilePicture,
+              }}
+              size={55}
+              theme={theme}
+            />
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.avatarContainer,
+              styles.groupAvatar,
+            ]}
+          >
+            <Text style={styles.avatarText}>
+              {item.name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
 
         {/* Conversation details */}
         <View style={styles.chatDetails}>

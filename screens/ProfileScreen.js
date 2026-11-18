@@ -1,9 +1,10 @@
 
-import { useState, useEffect, useContext } from "react";
+import { useContext } from "react";
 
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -14,29 +15,15 @@ import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
-export default function ProfileScreen({ navigation, route }) {
+export default function ProfileScreen({ navigation }) {
   const { theme, themeName, setThemeName } = useContext(ThemeContext);
-  const { user: authUser, logout } = useContext(AuthContext);
-
-  // Store profile updates received from Edit Profile
-  const [updatedUser, setUpdatedUser] = useState(null);
-
-  const updatedProfile = route.params?.updatedProfile;
-
-  useEffect(() => {
-    if (updatedProfile) {
-      setUpdatedUser(updatedProfile);
-
-      // Clear the parameter after receiving the data
-      navigation.setParams({ updatedProfile: undefined });
-    }
-  }, [updatedProfile, navigation]);
-
-  // Use the updated profile if available, otherwise use backend data
-  const user = updatedUser || authUser;
+  const { user, logout } = useContext(AuthContext);
 
   function showComingSoon(feature) {
-    Alert.alert(feature, `${feature} will be implemented in the next step.`);
+    Alert.alert(
+      feature,
+      `${feature} will be implemented in the next step.`
+    );
   }
 
   // Handle logout
@@ -114,6 +101,13 @@ export default function ProfileScreen({ navigation, route }) {
       marginBottom: 15,
       borderWidth: 3,
       borderColor: theme.highlight,
+      overflow: "hidden",
+    },
+
+    avatarImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 45,
     },
 
     avatarText: {
@@ -315,9 +309,17 @@ export default function ProfileScreen({ navigation, route }) {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.name?.charAt(0).toUpperCase() || "U"}
-            </Text>
+            {user?.profilePicture ? (
+              <Image
+                source={{ uri: user.profilePicture }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </Text>
+            )}
           </View>
 
           <Text style={styles.name}>
@@ -341,7 +343,9 @@ export default function ProfileScreen({ navigation, route }) {
               })
             }
           >
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+            <Text style={styles.editButtonText}>
+              Edit Profile
+            </Text>
           </Pressable>
         </View>
 
@@ -358,7 +362,9 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
 
             <View style={styles.settingDetails}>
-              <Text style={styles.settingName}>Change Password</Text>
+              <Text style={styles.settingName}>
+                Change Password
+              </Text>
 
               <Text style={styles.settingDescription}>
                 Update your account password
@@ -379,7 +385,9 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
 
             <View style={styles.settingDetails}>
-              <Text style={styles.settingName}>Account Settings</Text>
+              <Text style={styles.settingName}>
+                Account Settings
+              </Text>
 
               <Text style={styles.settingDescription}>
                 Manage your account preferences
@@ -400,7 +408,9 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
 
             <View style={styles.settingDetails}>
-              <Text style={styles.settingName}>App Theme</Text>
+              <Text style={styles.settingName}>
+                App Theme
+              </Text>
 
               <Text style={styles.settingDescription}>
                 Choose your preferred appearance

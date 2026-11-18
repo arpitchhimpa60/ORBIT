@@ -15,14 +15,14 @@ import {
 import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import UserAvatar from "../components/UserAvatar";
+
 import { ThemeContext } from "../context/ThemeContext";
-import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
 import { socket } from "../services/socket";
 
 export default function DiscoverScreen({ navigation }) {
   const { theme } = useContext(ThemeContext);
-  const { user: currentUser } = useContext(AuthContext);
 
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState([]);
@@ -67,20 +67,39 @@ export default function DiscoverScreen({ navigation }) {
 
         return {
           ...user,
-          isOnline: isOnline,
+          isOnline,
           lastSeen: lastSeen || user.lastSeen,
         };
       });
     });
   }
 
-  // Fetch users when Discover screen opens
-  // Listen for live online/offline updates
+  // Update a user's profile information in the Discover list
+  function updateUserProfile(updatedUser) {
+    if (!updatedUser?._id) {
+      return;
+    }
+
+    setUsers((previousUsers) =>
+      previousUsers.map((user) => {
+        if (user._id !== updatedUser._id) {
+          return user;
+        }
+
+        return {
+          ...user,
+          ...updatedUser,
+        };
+      })
+    );
+  }
+
+  // Fetch users and listen for socket events
   useEffect(() => {
     fetchUsers();
 
     function handleUserOnline(data) {
-      if (!data || !data.userId) {
+      if (!data?.userId) {
         return;
       }
 
@@ -88,7 +107,7 @@ export default function DiscoverScreen({ navigation }) {
     }
 
     function handleUserOffline(data) {
-      if (!data || !data.userId) {
+      if (!data?.userId) {
         return;
       }
 
@@ -99,18 +118,29 @@ export default function DiscoverScreen({ navigation }) {
       );
     }
 
-    // Refresh the list when Socket.IO reconnects
+    // Handle profile updates received from other users
+    function handleProfileUpdated(data) {
+      if (!data?.user) {
+        return;
+      }
+
+      updateUserProfile(data.user);
+    }
+
+    // Refresh users when Socket.IO reconnects
     function handleSocketConnect() {
       fetchUsers();
     }
 
     socket.on("userOnline", handleUserOnline);
     socket.on("userOffline", handleUserOffline);
+    socket.on("profileUpdated", handleProfileUpdated);
     socket.on("connect", handleSocketConnect);
 
     return () => {
       socket.off("userOnline", handleUserOnline);
       socket.off("userOffline", handleUserOffline);
+      socket.off("profileUpdated", handleProfileUpdated);
       socket.off("connect", handleSocketConnect);
     };
   }, []);
@@ -192,10 +222,15 @@ export default function DiscoverScreen({ navigation }) {
       // Open the private chat screen
       navigation.navigate("PrivateChat", {
         conversationId: result.conversation._id,
+
+        // Pass the complete user information
         otherUser: {
           _id: selectedUser._id,
           name: selectedUser.name,
           username: selectedUser.username,
+          profilePicture: selectedUser.profilePicture || "",
+          isOnline: selectedUser.isOnline,
+          lastSeen: selectedUser.lastSeen,
         },
       });
     } catch (error) {
@@ -290,24 +325,9 @@ export default function DiscoverScreen({ navigation }) {
       marginBottom: 12,
     },
 
-    avatarContainer: {
-      width: 55,
-      height: 55,
-      borderRadius: 28,
-      backgroundColor: theme.primary,
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 13,
-    },
-
-    avatarText: {
-      color: "#FFFFFF",
-      fontSize: 22,
-      fontWeight: "bold",
-    },
-
     userDetails: {
       flex: 1,
+      marginLeft: 13,
     },
 
     userName: {
@@ -391,9 +411,11 @@ export default function DiscoverScreen({ navigation }) {
 
   // Search users by name or username
   const filteredUsers = users.filter((item) => {
+    const searchText = search.toLowerCase();
+
     return (
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.username.toLowerCase().includes(search.toLowerCase())
+      item.name.toLowerCase().includes(searchText) ||
+      item.username.toLowerCase().includes(searchText)
     );
   });
 
@@ -407,12 +429,12 @@ export default function DiscoverScreen({ navigation }) {
 
     return (
       <View style={styles.userItem}>
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        {/* User profile picture */}
+        <UserAvatar
+          user={item}
+          size={55}
+          theme={theme}
+        />
 
         {/* User details */}
         <View style={styles.userDetails}>

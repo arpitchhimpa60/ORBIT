@@ -11,21 +11,32 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Image,
 } from "react-native";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import openImagePicker from "../components/imagePicker/ImagePicker";
+import ImagePreview from "../components/imagePicker/ImagePreview";
+
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
 export default function EditProfileScreen({ navigation, route }) {
   const { theme } = useContext(ThemeContext);
-  const { user, updateProfile } = useContext(AuthContext);
 
-  const currentProfile = route.params?.profile || user;
+  const {
+    user,
+    updateProfile,
+    updateProfilePicture,
+  } = useContext(AuthContext);
+
+  const currentProfile = user || route.params?.profile;
 
   const [name, setName] = useState(currentProfile?.name || "");
   const [about, setAbout] = useState(currentProfile?.about || "");
+
   const [loading, setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const styles = StyleSheet.create({
     container: {
@@ -89,6 +100,13 @@ export default function EditProfileScreen({ navigation, route }) {
       borderColor: theme.highlight,
       justifyContent: "center",
       alignItems: "center",
+      overflow: "hidden",
+    },
+
+    avatarImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 50,
     },
 
     avatarText: {
@@ -194,7 +212,63 @@ export default function EditProfileScreen({ navigation, route }) {
     },
   });
 
-  // Save changes to the backend
+  // Open gallery or camera
+  async function handleChooseImage() {
+    const image = await openImagePicker();
+
+    if (image) {
+      setSelectedImage(image);
+    }
+  }
+
+  // Cancel image selection
+  function handleCancelImage() {
+    setSelectedImage(null);
+  }
+
+  // Upload selected profile picture
+  async function handleSaveImage() {
+    if (!selectedImage) {
+      return;
+    }
+
+    if (!selectedImage.base64) {
+      Alert.alert(
+        "Image Error",
+        "Unable to read the selected image. Please select it again."
+      );
+
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const mimeType =
+        selectedImage.mimeType || "image/jpeg";
+
+      await updateProfilePicture(
+        selectedImage.base64,
+        mimeType
+      );
+
+      setSelectedImage(null);
+
+      Alert.alert(
+        "Success",
+        "Your profile picture has been updated successfully."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Upload Failed",
+        error.message || "Unable to update profile picture."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Save name and About information
   async function handleSave() {
     const cleanName = name.trim();
     const cleanAbout = about.trim();
@@ -271,25 +345,42 @@ export default function EditProfileScreen({ navigation, route }) {
           {/* Profile Picture */}
           <View style={styles.avatarSection}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {name.trim().charAt(0).toUpperCase() || "?"}
-              </Text>
+              {selectedImage ? (
+                <Image
+                  source={{ uri: selectedImage.uri }}
+                  style={styles.avatarImage}
+                />
+              ) : currentProfile?.profilePicture ? (
+                <Image
+                  source={{ uri: currentProfile.profilePicture }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {name.trim().charAt(0).toUpperCase() || "?"}
+                </Text>
+              )}
             </View>
 
             <Pressable
               style={styles.photoButton}
-              onPress={() =>
-                Alert.alert(
-                  "Profile Picture",
-                  "Gallery and Camera selection will be implemented later."
-                )
-              }
+              onPress={handleChooseImage}
+              disabled={loading}
             >
               <Text style={styles.photoButtonText}>
                 Change Profile Picture
               </Text>
             </Pressable>
           </View>
+
+          {/* Image Preview */}
+          <ImagePreview
+            image={selectedImage}
+            theme={theme}
+            onCancel={handleCancelImage}
+            onSend={handleSaveImage}
+            actionLabel={loading ? "Uploading..." : "Save"}
+          />
 
           {/* Name */}
           <Text style={styles.label}>Display Name</Text>
@@ -301,6 +392,7 @@ export default function EditProfileScreen({ navigation, route }) {
             value={name}
             onChangeText={setName}
             maxLength={40}
+            editable={!loading}
           />
 
           {/* Username */}
@@ -330,6 +422,7 @@ export default function EditProfileScreen({ navigation, route }) {
             multiline
             maxLength={150}
             textAlignVertical="top"
+            editable={!loading}
           />
 
           <Text style={styles.characterCount}>
