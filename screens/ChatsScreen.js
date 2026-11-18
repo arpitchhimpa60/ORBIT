@@ -18,6 +18,7 @@ import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
+import { socket } from "../services/socket";
 
 export default function ChatsScreen({ navigation }) {
   const [search, setSearch] = useState("");
@@ -63,7 +64,39 @@ export default function ChatsScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchConversations();
-    }, [fetchConversations])
+
+      // Listen for new incoming messages while this screen is active
+      function handleNewMessage(newMessage) {
+        const senderId = newMessage.sender?._id || newMessage.sender;
+
+        // Do not count messages sent by the logged-in user
+        if (String(senderId) === String(currentUserId)) {
+          return;
+        }
+
+        const conversationId =
+          newMessage.conversation?._id || newMessage.conversation;
+
+        setConversations((previousConversations) =>
+          previousConversations.map((conversation) => {
+            if (String(conversation._id) !== String(conversationId)) {
+              return conversation;
+            }
+
+            return {
+              ...conversation,
+              unreadCount: (conversation.unreadCount || 0) + 1,
+            };
+          })
+        );
+      }
+
+      socket.on("newMessage", handleNewMessage);
+
+      return () => {
+        socket.off("newMessage", handleNewMessage);
+      };
+    }, [fetchConversations, currentUserId])
   );
 
   // Find the other participant in each private conversation
@@ -84,6 +117,7 @@ export default function ChatsScreen({ navigation }) {
         name: otherUser.name,
         username: otherUser.username,
         profilePicture: otherUser.profilePicture,
+        unreadCount: conversation.unreadCount || 0,
       };
     })
     .filter((item) => item !== null);
@@ -253,6 +287,23 @@ export default function ChatsScreen({ navigation }) {
       marginTop: 5,
     },
 
+    unreadBadge: {
+      minWidth: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: theme.highlight,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 6,
+      marginLeft: 10,
+    },
+
+    unreadBadgeText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+
     emptyText: {
       color: theme.secondaryText,
       textAlign: "center",
@@ -346,6 +397,15 @@ export default function ChatsScreen({ navigation }) {
             Start a conversation
           </Text>
         </View>
+
+        {/* Unread message count */}
+        {item.unreadCount > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>
+              {item.unreadCount > 99 ? "99+" : item.unreadCount}
+            </Text>
+          </View>
+        )}
       </Pressable>
     );
   }

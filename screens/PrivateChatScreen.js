@@ -72,6 +72,26 @@ export default function PrivateChatScreen({ navigation, route }) {
     });
   }
 
+  // Mark this conversation as read
+  const markConversationRead = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        return;
+      }
+
+      await apiRequest(
+        `/api/conversations/${conversationId}/read`,
+        "PATCH",
+        null,
+        token
+      );
+    } catch (error) {
+      console.log("Mark conversation read error:", error.message);
+    }
+  }, [conversationId]);
+
   // Fetch messages from the backend
   const fetchMessages = useCallback(async (showLoader = true) => {
     try {
@@ -133,6 +153,7 @@ export default function PrivateChatScreen({ navigation, route }) {
 
       if (messageIndex !== -1) {
         const updatedMessages = [...previousMessages];
+
         updatedMessages[messageIndex] = {
           ...updatedMessages[messageIndex],
           ...messageToAdd,
@@ -176,6 +197,9 @@ export default function PrivateChatScreen({ navigation, route }) {
     useCallback(() => {
       fetchMessages();
 
+      // Mark the conversation as read when it opens
+      markConversationRead();
+
       function handleNewMessage(newMessage) {
         // Ignore messages from other conversations
         if (
@@ -188,6 +212,11 @@ export default function PrivateChatScreen({ navigation, route }) {
 
         // Acknowledge only messages sent by another user
         acknowledgeMessage(newMessage);
+
+        // This chat is currently open, so mark it as read
+        if (!isMyMessage(newMessage)) {
+          markConversationRead();
+        }
       }
 
       function handleMessageStatusUpdated(statusUpdate) {
@@ -197,6 +226,7 @@ export default function PrivateChatScreen({ navigation, route }) {
       // Refresh history after reconnecting
       function handleSocketConnect() {
         fetchMessages(false);
+        markConversationRead();
       }
 
       socket.on("newMessage", handleNewMessage);
@@ -213,6 +243,8 @@ export default function PrivateChatScreen({ navigation, route }) {
       fetchMessages,
       addMessage,
       updateMessageStatus,
+      markConversationRead,
+      user,
     ])
   );
 

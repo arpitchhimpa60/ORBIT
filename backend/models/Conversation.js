@@ -11,6 +11,22 @@ const conversationSchema = new mongoose.Schema(
       },
     ],
 
+    // Stores when each participant last opened this conversation
+    lastReadAt: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     directKey: {
       type: String,
       required: true,
