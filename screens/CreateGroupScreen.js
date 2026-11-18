@@ -1,5 +1,5 @@
 
-import { useState, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 
 import {
   View,
@@ -12,28 +12,58 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
+
+import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
-
-// Temporary sample users
-const users = [
-  { id: "1", name: "Rahul Sharma", username: "@rahul", online: true },
-  { id: "2", name: "Ananya Singh", username: "@ananya", online: true },
-  { id: "3", name: "Ketan Agarwal", username: "@ketan", online: false },
-  { id: "4", name: "Arnav Goyal", username: "@arnav", online: false },
-  { id: "5", name: "Asmi Mishra", username: "@asmi", online: true },
-  { id: "6", name: "Priya Verma", username: "@priya", online: false },
-];
+import { apiRequest } from "../services/api";
 
 export default function CreateGroupScreen({ navigation }) {
   const [groupName, setGroupName] = useState("");
   const [search, setSearch] = useState("");
+  const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
 
-  // Get global theme
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
+
   const { theme } = useContext(ThemeContext);
+
+  // Fetch real ORBIT users from the backend
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const token = await SecureStore.getItemAsync("userToken");
+
+        if (!token) {
+          throw new Error("Please log in again.");
+        }
+
+        const result = await apiRequest(
+          "/api/users",
+          "GET",
+          null,
+          token
+        );
+
+        setUsers(result.users || []);
+      } catch (error) {
+        console.log("Fetch users error:", error.message);
+        setError(error.message || "Unable to load users.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, []);
 
   // Theme-aware styles
   const styles = StyleSheet.create({
@@ -220,6 +250,30 @@ export default function CreateGroupScreen({ navigation }) {
       fontSize: 16,
       fontWeight: "bold",
     },
+
+    loadingContainer: {
+      paddingVertical: 30,
+      alignItems: "center",
+    },
+
+    errorText: {
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginBottom: 15,
+    },
+
+    retryButton: {
+      alignSelf: "center",
+      backgroundColor: theme.button,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 10,
+    },
+
+    retryButtonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
+    },
   });
 
   // Filter users by name or username
@@ -231,23 +285,32 @@ export default function CreateGroupScreen({ navigation }) {
   });
 
   // Select or remove a member
-  function toggleUser(user) {
+  function toggleUser(selectedUser) {
     const alreadySelected = selectedUsers.some(
-      (item) => item.id === user.id
+      (item) => item.id === selectedUser._id
     );
 
     if (alreadySelected) {
       setSelectedUsers(
-        selectedUsers.filter((item) => item.id !== user.id)
+        selectedUsers.filter(
+          (item) => item.id !== selectedUser._id
+        )
       );
     } else {
-      setSelectedUsers([...selectedUsers, user]);
+      setSelectedUsers([
+        ...selectedUsers,
+        {
+          id: selectedUser._id,
+          name: selectedUser.name,
+          username: selectedUser.username,
+        },
+      ]);
     }
   }
 
-  // Create group after validation
-  function handleCreateGroup() {
-    if (groupName.trim() === "") {
+  // Create group through the backend
+  async function handleCreateGroup() {
+    if (!groupName.trim()) {
       Alert.alert("Group name required", "Please enter a group name.");
       return;
     }
@@ -260,29 +323,51 @@ export default function CreateGroupScreen({ navigation }) {
       return;
     }
 
-    // Create a new group object
-    const newGroup = {
-      id: Date.now().toString(),
-      name: groupName.trim(),
-      members: selectedUsers.length + 1,
-      message: "Group created",
-      time: "Just now",
-      unread: 0,
-    };
+    try {
+      setIsCreating(true);
 
-    // Return to Groups and pass the new group
-    navigation.navigate("MainTabs", {
-      screen: "Groups",
-      params: {
-        newGroup: newGroup,
-      },
-    });
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        "/api/conversations/group",
+        "POST",
+        {
+          groupName: groupName.trim(),
+          memberIds: selectedUsers.map((item) => item.id),
+        },
+        token
+      );
+
+      Alert.alert(
+        "Group created",
+        `${result.conversation.groupName} was created successfully.`,
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      console.log("Create group error:", error.message);
+
+      Alert.alert(
+        "Unable to create group",
+        error.message || "Something went wrong."
+      );
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   // Display a user in the list
   function renderUser({ item }) {
     const isSelected = selectedUsers.some(
-      (user) => user.id === item.id
+      (user) => user.id === item._id
     );
 
     return (
@@ -298,7 +383,7 @@ export default function CreateGroupScreen({ navigation }) {
 
         <View style={styles.userDetails}>
           <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.username}>@{item.username}</Text>
         </View>
 
         <View
@@ -378,7 +463,13 @@ export default function CreateGroupScreen({ navigation }) {
                   <Pressable
                     key={user.id}
                     style={styles.memberChip}
-                    onPress={() => toggleUser(user)}
+                    onPress={() => {
+                      setSelectedUsers(
+                        selectedUsers.filter(
+                          (item) => item.id !== user.id
+                        )
+                      );
+                    }}
                   >
                     <Text style={styles.memberChipText}>
                       {user.name}  ×
@@ -405,27 +496,57 @@ export default function CreateGroupScreen({ navigation }) {
             />
 
             {/* User list */}
-            <FlatList
-              data={filteredUsers}
-              renderItem={renderUser}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <Text style={styles.emptySelection}>
-                  No users found.
-                </Text>
-              }
-            />
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator
+                  size="large"
+                  color={theme.highlight}
+                />
+              </View>
+            ) : error ? (
+              <View>
+                <Text style={styles.errorText}>{error}</Text>
+
+                <Pressable
+                  style={styles.retryButton}
+                  onPress={() => navigation.replace("CreateGroup")}
+                >
+                  <Text style={styles.retryButtonText}>
+                    Try Again
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredUsers}
+                renderItem={renderUser}
+                keyExtractor={(item) => item._id}
+                scrollEnabled={false}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <Text style={styles.emptySelection}>
+                    No users found.
+                  </Text>
+                }
+              />
+            )}
 
             {/* Create button */}
             <Pressable
-              style={styles.createButton}
+              style={[
+                styles.createButton,
+                isCreating && { opacity: 0.6 },
+              ]}
               onPress={handleCreateGroup}
+              disabled={isCreating}
             >
-              <Text style={styles.createButtonText}>
-                Create Group
-              </Text>
+              {isCreating ? (
+                <ActivityIndicator color={theme.buttonText} />
+              ) : (
+                <Text style={styles.createButtonText}>
+                  Create Group
+                </Text>
+              )}
             </Pressable>
           </ScrollView>
         </View>

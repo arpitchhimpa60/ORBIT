@@ -1,4 +1,3 @@
-
 import { useContext } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -16,6 +15,7 @@ import CreateGroupScreen from "../../screens/CreateGroupScreen";
 import EditProfileScreen from "../../screens/EditProfileScreen";
 import ChangePasswordScreen from "../../screens/ChangePasswordScreen";
 import PrivateChatScreen from "../../screens/PrivateChatScreen";
+import GroupChatScreen from "../../screens/GroupChatScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -48,25 +48,15 @@ export default function StackNavigator() {
     >
       {user ? (
         <>
-          <Stack.Screen
-            name="MainTabs"
-            component={BottomTabNavigator}
-          />
+          <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
 
-          <Stack.Screen
-            name="PrivateChat"
-            component={PrivateChatScreen}
-          />
+          <Stack.Screen name="PrivateChat" component={PrivateChatScreen} />
 
-          <Stack.Screen
-            name="CreateGroup"
-            component={CreateGroupScreen}
-          />
+          <Stack.Screen name="GroupChat" component={GroupChatScreen} />
 
-          <Stack.Screen
-            name="EditProfile"
-            component={EditProfileScreen}
-          />
+          <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
 
           <Stack.Screen
             name="ChangePassword"
@@ -75,20 +65,11 @@ export default function StackNavigator() {
         </>
       ) : (
         <>
-          <Stack.Screen
-            name="Welcome"
-            component={WelcomeScreen}
-          />
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
 
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-          />
+          <Stack.Screen name="Login" component={LoginScreen} />
 
-          <Stack.Screen
-            name="Register"
-            component={RegisterScreen}
-          />
+          <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       )}
     </Stack.Navigator>

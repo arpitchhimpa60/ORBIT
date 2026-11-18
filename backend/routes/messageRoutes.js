@@ -13,7 +13,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 // Send a message
 router.post("/", authMiddleware, sendMessage);
 
-// Get messages of a conversation
+// Get messages from a conversation
 router.get("/:conversationId", authMiddleware, getMessages);
 
 module.exports = router;

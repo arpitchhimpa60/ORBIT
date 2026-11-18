@@ -39,7 +39,15 @@ app.set("onlineUsers", onlineUsers);
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+
+// Allow larger JSON requests for Base64 image uploads
+app.use(express.json({ limit: "10mb" }));
+
+// Check imported route types
+console.log("authRoutes:", typeof authRoutes);
+console.log("userRoutes:", typeof userRoutes);
+console.log("conversationRoutes:", typeof conversationRoutes);
+console.log("messageRoutes:", typeof messageRoutes);
 
 // API routes
 app.use("/api/auth", authRoutes);
@@ -227,7 +235,6 @@ io.on("connection", (socket) => {
       console.log("Last seen update error:", error.message);
     }
   });
-
 });
 
 // Connect to MongoDB and start server

@@ -1,16 +1,42 @@
 
 const Message = require("../models/Message");
 const Conversation = require("../models/Conversation");
+const cloudinary = require("../config/cloudinary");
 
 // Send a new message
 const sendMessage = async (req, res) => {
   try {
-    const { conversationId, text } = req.body;
+    const {
+      conversationId,
+      type = "text",
+      text,
+      imageBase64,
+      mimeType,
+    } = req.body;
 
-    // Check required fields
-    if (!conversationId || !text || !text.trim()) {
+    // Check conversation ID
+    if (!conversationId) {
       return res.status(400).json({
-        message: "Conversation ID and message text are required",
+        message: "Conversation ID is required",
+      });
+    }
+
+    // Check whether the message has valid content
+    if (type === "text" && (!text || !text.trim())) {
+      return res.status(400).json({
+        message: "Message text is required",
+      });
+    }
+
+    if (type === "image" && !imageBase64) {
+      return res.status(400).json({
+        message: "Image is required",
+      });
+    }
+
+    if (type !== "text" && type !== "image") {
+      return res.status(400).json({
+        message: "Invalid message type",
       });
     }
 
@@ -34,12 +60,34 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // Create and save the message
-    const message = await Message.create({
+    // Prepare the message data
+    const messageData = {
       conversation: conversationId,
       sender: req.user._id,
-      text: text.trim(),
-    });
+      type: type,
+    };
+
+    // Handle text messages
+    if (type === "text") {
+      messageData.text = text.trim();
+    }
+
+    // Handle image messages
+    if (type === "image") {
+      const imageData = `data:${mimeType || "image/jpeg"};base64,${imageBase64}`;
+
+      // Upload image to Cloudinary
+      const uploadResult = await cloudinary.uploader.upload(imageData, {
+        folder: "orbit/messages",
+        resource_type: "image",
+      });
+
+      // Save the Cloudinary image URL
+      messageData.imageUrl = uploadResult.secure_url;
+    }
+
+    // Create and save the message
+    const message = await Message.create(messageData);
 
     // Update the conversation's updatedAt timestamp
     conversation.updatedAt = new Date();

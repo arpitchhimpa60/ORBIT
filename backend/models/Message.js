@@ -17,11 +17,24 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Actual message content
+    // Type of message: text or image
+    type: {
+      type: String,
+      enum: ["text", "image"],
+      default: "text",
+    },
+
+    // Text content (used for text messages)
     text: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
+    },
+
+    // Cloudinary URL (used for image messages)
+    imageUrl: {
+      type: String,
+      default: null,
     },
 
     // Delivery status of the message

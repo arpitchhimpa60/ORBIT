@@ -9,6 +9,7 @@ import {
 import {
   View,
   Text,
+  Image,
   TextInput,
   Pressable,
   StyleSheet,
@@ -17,12 +18,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  TouchableOpacity,
 } from "react-native";
 
 import { useFocusEffect } from "@react-navigation/native";
 import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import ImagePicker from "../components/imagePicker/ImagePicker";
+import ImagePreview from "../components/imagePicker/ImagePreview";
+
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
@@ -36,6 +42,8 @@ export default function GroupChatScreen({ navigation, route }) {
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [fullScreenImage, setFullScreenImage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
@@ -327,6 +335,64 @@ export default function GroupChatScreen({ navigation, route }) {
     ])
   );
 
+  // Open the device gallery and select an image
+  async function pickImage() {
+    const image = await ImagePicker();
+
+    if (image) {
+      setSelectedImage(image);
+    }
+  }
+
+  // Close the image preview
+  function cancelImagePreview() {
+    setSelectedImage(null);
+  }
+
+  // Upload and send the selected image
+  async function handleImageSend() {
+    if (!selectedImage || !selectedImage.base64 || isSending) {
+      return;
+    }
+
+    try {
+      setIsSending(true);
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        "/api/messages",
+        "POST",
+        {
+          conversationId: conversationId,
+          type: "image",
+          imageBase64: selectedImage.base64,
+          mimeType: selectedImage.mimeType || "image/jpeg",
+        },
+        token
+      );
+
+      // Add the saved image message to the chat
+      addMessage(result.newMessage);
+
+      // Close the image preview after successful sending
+      setSelectedImage(null);
+    } catch (error) {
+      console.log("Send group image error:", error.message);
+
+      Alert.alert(
+        "Image not sent",
+        error.message || "Unable to upload this image. Please try again."
+      );
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   // Send a group message
   async function sendMessage() {
     const messageText = text.trim();
@@ -557,6 +623,45 @@ export default function GroupChatScreen({ navigation, route }) {
       lineHeight: 21,
     },
 
+    messageImage: {
+      width: 220,
+      height: 200,
+      borderRadius: 10,
+      resizeMode: "contain",
+      backgroundColor: theme.background,
+    },
+
+    fullScreenContainer: {
+      flex: 1,
+      backgroundColor: "#000000",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    fullScreenImage: {
+      width: "100%",
+      height: "100%",
+    },
+
+    closeImageButton: {
+  position: "absolute",
+  top: 55,
+  left: 20,
+  zIndex: 1,
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  backgroundColor: "#333333",
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+    closeImageText: {
+      color: "#FFFFFF",
+      fontSize: 27,
+      fontWeight: "bold",
+    },
+
     otherMessageText: {
       color: theme.text,
     },
@@ -608,6 +713,23 @@ export default function GroupChatScreen({ navigation, route }) {
       borderTopWidth: 1,
       borderTopColor: theme.border,
       gap: 10,
+    },
+
+    attachmentButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    attachmentButtonText: {
+      color: theme.text,
+      fontSize: 23,
+      fontWeight: "bold",
     },
 
     messageInput: {
@@ -669,14 +791,23 @@ export default function GroupChatScreen({ navigation, route }) {
             </Text>
           )}
 
-          <Text
-            style={[
-              styles.messageText,
-              !mine && styles.otherMessageText,
-            ]}
-          >
-            {item.text}
-          </Text>
+          {item.type === "image" && item.imageUrl ? (
+            <Pressable onPress={() => setFullScreenImage(item.imageUrl)}>
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.messageImage}
+              />
+            </Pressable>
+          ) : (
+            <Text
+              style={[
+                styles.messageText,
+                !mine && styles.otherMessageText,
+              ]}
+            >
+              {item.text}
+            </Text>
+          )}
 
           {mine && (
             <Text style={styles.messageStatus}>
@@ -827,8 +958,25 @@ export default function GroupChatScreen({ navigation, route }) {
             />
           )}
 
+          {/* Selected image preview */}
+          {selectedImage && (
+            <ImagePreview
+              image={selectedImage}
+              onCancel={cancelImagePreview}
+              onSend={handleImageSend}
+              theme={theme}
+            />
+          )}
+
           {/* Message input */}
           <View style={styles.inputContainer}>
+            <Pressable
+              style={styles.attachmentButton}
+              onPress={pickImage}
+            >
+              <Text style={styles.attachmentButtonText}>+</Text>
+            </Pressable>
+
             <TextInput
               style={styles.messageInput}
               placeholder="Message the group..."
@@ -856,6 +1004,31 @@ export default function GroupChatScreen({ navigation, route }) {
             </Pressable>
           </View>
         </View>
+
+        {/* Full-screen image viewer */}
+        <Modal
+          visible={fullScreenImage !== null}
+          transparent={false}
+          animationType="fade"
+          onRequestClose={() => setFullScreenImage(null)}
+        >
+          <View style={styles.fullScreenContainer}>
+            <TouchableOpacity
+              style={styles.closeImageButton}
+              onPress={() => setFullScreenImage(null)}
+            >
+              <Text style={styles.closeImageText}>×</Text>
+            </TouchableOpacity>
+
+            {fullScreenImage && (
+              <Image
+                source={{ uri: fullScreenImage }}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </OrbitalBackground>
   );
