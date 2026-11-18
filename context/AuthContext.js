@@ -3,6 +3,10 @@ import { createContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 
 import { apiRequest } from "../services/api";
+import {
+  connectSocket,
+  disconnectSocket,
+} from "../services/socket";
 
 export const AuthContext = createContext();
 
@@ -25,12 +29,16 @@ export default function AuthProvider({ children }) {
           );
 
           setUser(result.user);
+
+          // Connect Socket.IO after restoring the session
+          connectSocket(token);
         }
       } catch (error) {
         if (error.status === 401) {
           await SecureStore.deleteItemAsync("userToken");
         }
 
+        disconnectSocket();
         setUser(null);
       } finally {
         setIsCheckingAuth(false);
@@ -43,7 +51,11 @@ export default function AuthProvider({ children }) {
   // Save the user and token after successful login
   async function login(userData, token) {
     await SecureStore.setItemAsync("userToken", token);
+
     setUser(userData);
+
+    // Connect Socket.IO after login
+    connectSocket(token);
   }
 
   // Update the user's profile on the backend
@@ -68,7 +80,10 @@ export default function AuthProvider({ children }) {
 
   // Log out from this device
   async function logout() {
+    disconnectSocket();
+
     await SecureStore.deleteItemAsync("userToken");
+
     setUser(null);
   }
 

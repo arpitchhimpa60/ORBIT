@@ -1,5 +1,10 @@
 
-import { useState, useContext, useCallback, useRef } from "react";
+import {
+  useState,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
 
 import {
   View,
@@ -21,6 +26,7 @@ import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
+import { socket } from "../services/socket";
 
 export default function PrivateChatScreen({ navigation, route }) {
   const { theme } = useContext(ThemeContext);
@@ -69,11 +75,48 @@ export default function PrivateChatScreen({ navigation, route }) {
     }
   }, [conversationId]);
 
-  // Fetch messages whenever the chat screen opens
+  // Add a message without creating duplicates
+  const addMessage = useCallback((newMessage) => {
+    setMessages((previousMessages) => {
+      const alreadyExists = previousMessages.some(
+        (message) => message._id === newMessage._id
+      );
+
+      if (alreadyExists) {
+        return previousMessages;
+      }
+
+      return [...previousMessages, newMessage];
+    });
+  }, []);
+
+  // Fetch history and listen for real-time messages
   useFocusEffect(
     useCallback(() => {
       fetchMessages();
-    }, [fetchMessages])
+
+      function handleNewMessage(newMessage) {
+        // Ignore messages from other conversations
+        if (String(newMessage.conversation) !== String(conversationId)) {
+          return;
+        }
+
+        addMessage(newMessage);
+      }
+
+      // Refresh history after reconnecting
+      function handleSocketConnect() {
+        fetchMessages(false);
+      }
+
+      socket.on("newMessage", handleNewMessage);
+      socket.on("connect", handleSocketConnect);
+
+      return () => {
+        socket.off("newMessage", handleNewMessage);
+        socket.off("connect", handleSocketConnect);
+      };
+    }, [conversationId, fetchMessages, addMessage])
   );
 
   // Send a new message
@@ -93,7 +136,7 @@ export default function PrivateChatScreen({ navigation, route }) {
         throw new Error("Please log in again.");
       }
 
-      await apiRequest(
+      const result = await apiRequest(
         "/api/messages",
         "POST",
         {
@@ -103,10 +146,11 @@ export default function PrivateChatScreen({ navigation, route }) {
         token
       );
 
-      setText("");
+      // Add the saved message from the HTTP response
+      // The socket event may also arrive, but addMessage prevents duplicates
+      addMessage(result.newMessage);
 
-      // Fetch the updated message list
-      await fetchMessages(false);
+      setText("");
     } catch (error) {
       console.log("Send message error:", error.message);
 
@@ -120,13 +164,12 @@ export default function PrivateChatScreen({ navigation, route }) {
   }
 
   // Check whether a message belongs to the logged-in user
-    function isMyMessage(message) {
+  function isMyMessage(message) {
     const senderId = message.sender?._id || message.sender;
-
     const currentUserId = user?._id || user?.id;
 
     return String(senderId) === String(currentUserId);
-    }
+  }
 
   // Theme-aware styles
   const styles = StyleSheet.create({

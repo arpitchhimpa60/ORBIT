@@ -45,9 +45,26 @@ const sendMessage = async (req, res) => {
     conversation.updatedAt = new Date();
     await conversation.save();
 
+    // Get the saved message with sender information
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "name username");
+
+    // Get the Socket.IO server
+    const io = req.app.get("io");
+
+    // Send the message to every participant's user room
+    if (io) {
+      conversation.participants.forEach((participant) => {
+        io.to(`user:${participant.toString()}`).emit(
+          "newMessage",
+          populatedMessage
+        );
+      });
+    }
+
     res.status(201).json({
       message: "Message sent successfully",
-      newMessage: message,
+      newMessage: populatedMessage,
     });
   } catch (error) {
     console.log("Send message error:", error.message);
