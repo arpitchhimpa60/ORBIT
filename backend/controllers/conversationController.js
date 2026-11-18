@@ -9,21 +9,18 @@ const createOrGetConversation = async (req, res) => {
     const { receiverId } = req.body;
     const senderId = req.user._id;
 
-    // Check whether receiver ID is provided
     if (!receiverId) {
       return res.status(400).json({
         message: "Receiver ID is required",
       });
     }
 
-    // Prevent starting a conversation with yourself
     if (senderId.toString() === receiverId.toString()) {
       return res.status(400).json({
         message: "You cannot start a conversation with yourself",
       });
     }
 
-    // Check whether receiver exists
     const receiver = await User.findById(receiverId);
 
     if (!receiver) {
@@ -32,7 +29,6 @@ const createOrGetConversation = async (req, res) => {
       });
     }
 
-    // Generate the same key regardless of who starts the conversation
     const participantIds = [
       senderId.toString(),
       receiverId.toString(),
@@ -40,7 +36,6 @@ const createOrGetConversation = async (req, res) => {
 
     const directKey = participantIds.join("_");
 
-    // Check whether conversation already exists
     let conversation = await Conversation.findOne({
       directKey: directKey,
     }).populate("participants", "name username profilePicture");
@@ -52,21 +47,19 @@ const createOrGetConversation = async (req, res) => {
       });
     }
 
-    // Create a new conversation
     const currentDate = new Date();
 
     conversation = await Conversation.create({
+      type: "private",
       participants: participantIds,
       directKey: directKey,
 
-      // Initialize the last-read time for both participants
       lastReadAt: participantIds.map((participantId) => ({
         user: participantId,
         date: currentDate,
       })),
     });
 
-    // Get participant details
     conversation = await Conversation.findById(
       conversation._id
     ).populate("participants", "name username profilePicture");
@@ -76,8 +69,7 @@ const createOrGetConversation = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    // Handle duplicate conversation creation
-    if (error.code === 11000) {
+    if (error.code === 11000 && req.body.receiverId) {
       try {
         const participantIds = [
           req.user._id.toString(),
@@ -88,10 +80,12 @@ const createOrGetConversation = async (req, res) => {
           directKey: participantIds.join("_"),
         }).populate("participants", "name username profilePicture");
 
-        return res.status(200).json({
-          message: "Conversation already exists",
-          conversation,
-        });
+        if (conversation) {
+          return res.status(200).json({
+            message: "Conversation already exists",
+            conversation,
+          });
+        }
       } catch (findError) {
         console.log("Find conversation error:", findError.message);
       }
@@ -105,45 +99,136 @@ const createOrGetConversation = async (req, res) => {
   }
 };
 
-// Get all private conversations of the logged-in user
+// Create a new group conversation
+const createGroup = async (req, res) => {
+  try {
+    const { groupName, memberIds } = req.body;
+
+    const creatorId = req.user._id;
+
+    if (!groupName || !groupName.trim()) {
+      return res.status(400).json({
+        message: "Group name is required",
+      });
+    }
+
+    if (groupName.trim().length > 40) {
+      return res.status(400).json({
+        message: "Group name cannot exceed 40 characters",
+      });
+    }
+
+    if (!Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({
+        message: "Add at least one member to create a group",
+      });
+    }
+
+    const uniqueMemberIds = [
+      ...new Set(memberIds.map((id) => String(id))),
+    ];
+
+    if (uniqueMemberIds.includes(creatorId.toString())) {
+      return res.status(400).json({
+        message: "You cannot add yourself as another member",
+      });
+    }
+
+    const members = await User.find({
+      _id: { $in: uniqueMemberIds },
+    }).select("_id");
+
+    if (members.length !== uniqueMemberIds.length) {
+      return res.status(404).json({
+        message: "One or more selected users were not found",
+      });
+    }
+
+    const participantIds = [
+      creatorId,
+      ...members.map((member) => member._id),
+    ];
+
+    const currentDate = new Date();
+
+    let conversation = await Conversation.create({
+      type: "group",
+      groupName: groupName.trim(),
+      createdBy: creatorId,
+      participants: participantIds,
+
+      lastReadAt: participantIds.map((participantId) => ({
+        user: participantId,
+        date: currentDate,
+      })),
+    });
+
+    conversation = await Conversation.findById(
+      conversation._id
+    )
+      .populate("participants", "name username profilePicture")
+      .populate("createdBy", "name username");
+
+    res.status(201).json({
+      message: "Group created successfully",
+      conversation,
+    });
+  } catch (error) {
+    console.log("Create group error:", error.message);
+
+    res.status(500).json({
+      message: "Server error while creating group",
+    });
+  }
+};
+
+// Get all conversations of the logged-in user
 const getMyConversations = async (req, res) => {
   try {
     const conversations = await Conversation.find({
       participants: req.user._id,
     })
       .populate("participants", "name username profilePicture")
+      .populate("createdBy", "name username")
       .sort({ updatedAt: -1 });
 
-    // Calculate unread messages for every conversation
-    const conversationsWithUnreadCount = await Promise.all(
+    // Add unread count and latest message to every conversation
+    const conversationsWithDetails = await Promise.all(
       conversations.map(async (conversation) => {
         const currentUserReadTime = conversation.lastReadAt.find(
           (entry) =>
             entry.user.toString() === req.user._id.toString()
         );
 
-        // Use conversation creation time for older conversations
-        // that do not yet have a lastReadAt entry
         const lastReadDate = currentUserReadTime
           ? currentUserReadTime.date
           : conversation.createdAt;
 
+        // Count messages received after the user last opened this chat
         const unreadCount = await Message.countDocuments({
           conversation: conversation._id,
           sender: { $ne: req.user._id },
           createdAt: { $gt: lastReadDate },
         });
 
+        // Find the latest message in this conversation
+        const lastMessage = await Message.findOne({
+          conversation: conversation._id,
+        })
+          .sort({ createdAt: -1 })
+          .populate("sender", "name username");
+
         return {
           ...conversation.toObject(),
           unreadCount: unreadCount,
+          lastMessage: lastMessage,
         };
       })
     );
 
     res.status(200).json({
       message: "Conversations fetched successfully",
-      conversations: conversationsWithUnreadCount,
+      conversations: conversationsWithDetails,
     });
   } catch (error) {
     console.log("Get conversations error:", error.message);
@@ -159,7 +244,6 @@ const markConversationRead = async (req, res) => {
   try {
     const { conversationId } = req.params;
 
-    // Find the conversation
     const conversation = await Conversation.findById(conversationId);
 
     if (!conversation) {
@@ -168,7 +252,6 @@ const markConversationRead = async (req, res) => {
       });
     }
 
-    // Check whether the logged-in user belongs to this conversation
     const isParticipant = conversation.participants.some(
       (participant) =>
         participant.toString() === req.user._id.toString()
@@ -180,17 +263,14 @@ const markConversationRead = async (req, res) => {
       });
     }
 
-    // Find this user's last-read entry
     const readEntry = conversation.lastReadAt.find(
       (entry) =>
         entry.user.toString() === req.user._id.toString()
     );
 
     if (readEntry) {
-      // Update only the logged-in user's timestamp
       readEntry.date = new Date();
     } else {
-      // Add an entry for older conversations
       conversation.lastReadAt.push({
         user: req.user._id,
         date: new Date(),
@@ -213,6 +293,7 @@ const markConversationRead = async (req, res) => {
 
 module.exports = {
   createOrGetConversation,
+  createGroup,
   getMyConversations,
   markConversationRead,
 };

@@ -51,7 +51,7 @@ export default function ChatsScreen({ navigation }) {
         token
       );
 
-      setConversations(result.conversations);
+      setConversations(result.conversations || []);
     } catch (error) {
       console.log("Fetch conversations error:", error.message);
       setError(error.message || "Unable to load conversations.");
@@ -65,30 +65,51 @@ export default function ChatsScreen({ navigation }) {
     useCallback(() => {
       fetchConversations();
 
-      // Listen for new incoming messages while this screen is active
+      // Listen for new incoming and outgoing messages
       function handleNewMessage(newMessage) {
         const senderId = newMessage.sender?._id || newMessage.sender;
-
-        // Do not count messages sent by the logged-in user
-        if (String(senderId) === String(currentUserId)) {
-          return;
-        }
 
         const conversationId =
           newMessage.conversation?._id || newMessage.conversation;
 
-        setConversations((previousConversations) =>
-          previousConversations.map((conversation) => {
-            if (String(conversation._id) !== String(conversationId)) {
-              return conversation;
-            }
+        setConversations((previousConversations) => {
+          const updatedConversations = previousConversations.map(
+            (conversation) => {
+              if (String(conversation._id) !== String(conversationId)) {
+                return conversation;
+              }
 
-            return {
-              ...conversation,
-              unreadCount: (conversation.unreadCount || 0) + 1,
-            };
-          })
-        );
+              const isOwnMessage =
+                String(senderId) === String(currentUserId);
+
+              return {
+                ...conversation,
+                lastMessage: newMessage,
+                updatedAt: newMessage.createdAt || new Date().toISOString(),
+                unreadCount: isOwnMessage
+                  ? conversation.unreadCount || 0
+                  : (conversation.unreadCount || 0) + 1,
+              };
+            }
+          );
+
+          // Move the conversation with the latest message to the top
+          const updatedIndex = updatedConversations.findIndex(
+            (conversation) =>
+              String(conversation._id) === String(conversationId)
+          );
+
+          if (updatedIndex > 0) {
+            const [updatedConversation] = updatedConversations.splice(
+              updatedIndex,
+              1
+            );
+
+            updatedConversations.unshift(updatedConversation);
+          }
+
+          return updatedConversations;
+        });
       }
 
       socket.on("newMessage", handleNewMessage);
@@ -99,9 +120,85 @@ export default function ChatsScreen({ navigation }) {
     }, [fetchConversations, currentUserId])
   );
 
-  // Find the other participant in each private conversation
+  // Format the message timestamp
+  function formatMessageTime(date) {
+    if (!date) {
+      return "";
+    }
+
+    const messageDate = new Date(date);
+    const today = new Date();
+
+    const isToday =
+      messageDate.toDateString() === today.toDateString();
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isYesterday =
+      messageDate.toDateString() === yesterday.toDateString();
+
+    if (isToday) {
+      return messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    if (isYesterday) {
+      return "Yesterday";
+    }
+
+    if (messageDate.getFullYear() === today.getFullYear()) {
+      return messageDate.toLocaleDateString([], {
+        weekday: "short",
+      });
+    }
+
+    return messageDate.toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+    });
+  }
+
+  // Prepare private and group conversations for display
   const chatList = conversations
     .map((conversation) => {
+      const lastMessage = conversation.lastMessage;
+
+      let messagePreview = "No messages yet";
+
+      if (lastMessage) {
+        const senderId =
+          lastMessage.sender?._id || lastMessage.sender;
+
+        const senderName =
+          String(senderId) === String(currentUserId)
+            ? "You"
+            : lastMessage.sender?.name || "User";
+
+        messagePreview = `${senderName}: ${lastMessage.text}`;
+      }
+
+      const messageTime = lastMessage
+        ? formatMessageTime(lastMessage.createdAt)
+        : "";
+
+      // Group conversation
+      if (conversation.type === "group") {
+        return {
+          id: conversation._id,
+          type: "group",
+          name: conversation.groupName || "Unnamed Group",
+          username: "",
+          memberCount: conversation.participants.length,
+          unreadCount: conversation.unreadCount || 0,
+          lastMessage: messagePreview,
+          messageTime,
+        };
+      }
+
+      // Private conversation
       const otherUser = conversation.participants.find(
         (participant) =>
           String(participant._id || participant.id) !==
@@ -114,10 +211,13 @@ export default function ChatsScreen({ navigation }) {
 
       return {
         id: conversation._id,
+        type: "private",
         name: otherUser.name,
         username: otherUser.username,
-        profilePicture: otherUser.profilePicture,
+        memberCount: 0,
         unreadCount: conversation.unreadCount || 0,
+        lastMessage: messagePreview,
+        messageTime,
       };
     })
     .filter((item) => item !== null);
@@ -259,6 +359,10 @@ export default function ChatsScreen({ navigation }) {
       marginRight: 13,
     },
 
+    groupAvatar: {
+      borderRadius: 16,
+    },
+
     avatarText: {
       color: "#FFFFFF",
       fontSize: 22,
@@ -269,10 +373,23 @@ export default function ChatsScreen({ navigation }) {
       flex: 1,
     },
 
+    chatTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
     chatName: {
       color: theme.text,
       fontSize: 15,
       fontWeight: "bold",
+      flex: 1,
+    },
+
+    messageTime: {
+      color: theme.secondaryText,
+      fontSize: 10,
+      marginLeft: 8,
     },
 
     chatUsername: {
@@ -361,23 +478,38 @@ export default function ChatsScreen({ navigation }) {
     },
   });
 
+  // Open the correct conversation screen
+  function openConversation(item) {
+    if (item.type === "group") {
+      navigation.navigate("GroupChat", {
+        conversationId: item.id,
+        groupName: item.name,
+      });
+    } else {
+      navigation.navigate("PrivateChat", {
+        conversationId: item.id,
+        otherUser: {
+          name: item.name,
+          username: item.username,
+        },
+      });
+    }
+  }
+
   // Display each conversation
   function renderConversation({ item }) {
     return (
       <Pressable
         style={styles.chatItem}
-        onPress={() =>
-          navigation.navigate("PrivateChat", {
-            conversationId: item.id,
-            otherUser: {
-              name: item.name,
-              username: item.username,
-            },
-          })
-        }
+        onPress={() => openConversation(item)}
       >
         {/* Avatar */}
-        <View style={styles.avatarContainer}>
+        <View
+          style={[
+            styles.avatarContainer,
+            item.type === "group" && styles.groupAvatar,
+          ]}
+        >
           <Text style={styles.avatarText}>
             {item.name.charAt(0).toUpperCase()}
           </Text>
@@ -385,16 +517,24 @@ export default function ChatsScreen({ navigation }) {
 
         {/* Conversation details */}
         <View style={styles.chatDetails}>
-          <Text style={styles.chatName} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.chatTopRow}>
+            <Text style={styles.chatName} numberOfLines={1}>
+              {item.name}
+            </Text>
+
+            <Text style={styles.messageTime}>
+              {item.messageTime}
+            </Text>
+          </View>
 
           <Text style={styles.chatUsername} numberOfLines={1}>
-            @{item.username}
+            {item.type === "group"
+              ? `${item.memberCount} members`
+              : `@${item.username}`}
           </Text>
 
-          <Text style={styles.lastMessage}>
-            Start a conversation
+          <Text style={styles.lastMessage} numberOfLines={1}>
+            {item.lastMessage}
           </Text>
         </View>
 

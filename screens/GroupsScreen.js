@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useContext } from "react";
+import { useState, useContext, useCallback } from "react";
 
 import {
   View,
@@ -8,86 +8,173 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
+
+import { useFocusEffect } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
+import { apiRequest } from "../services/api";
 
-// Temporary sample groups
-const initialGroups = [
-  {
-    id: "1",
-    name: "Project Team",
-    members: 4,
-    message: "Rahul: Meeting at 5 PM?",
-    time: "10:45 AM",
-    unread: 2,
-  },
-  {
-    id: "2",
-    name: "College Friends",
-    members: 8,
-    message: "Ketan: Check out this picture!",
-    time: "Yesterday",
-    unread: 0,
-  },
-  {
-    id: "3",
-    name: "Hackathon Team",
-    members: 5,
-    message: "You: I have pushed the latest code.",
-    time: "Yesterday",
-    unread: 3,
-  },
-  {
-    id: "4",
-    name: "Weekend Plans",
-    members: 6,
-    message: "Ananya: Where are we going?",
-    time: "Monday",
-    unread: 0,
-  },
-  {
-    id: "5",
-    name: "DSA Discussion",
-    members: 12,
-    message: "Arnav: Solution for question 3?",
-    time: "Sunday",
-    unread: 0,
-  },
-];
-
-export default function GroupsScreen({ navigation, route }) {
-  const [groups, setGroups] = useState(initialGroups);
+export default function GroupsScreen({ navigation }) {
+  const [groups, setGroups] = useState([]);
   const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Get global theme
   const { theme } = useContext(ThemeContext);
+  const { user } = useContext(AuthContext);
 
-  // Receive a newly created group
-  const newGroup = route.params?.newGroup;
+  const currentUserId = user?._id || user?.id;
 
-  useEffect(() => {
-    if (newGroup) {
-      setGroups((previousGroups) => {
-        // Prevent adding the same group twice
-        const alreadyExists = previousGroups.some(
-          (group) => group.id === newGroup.id
-        );
+  // Fetch groups whenever the screen is opened
+  const fetchGroups = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError("");
 
-        if (alreadyExists) {
-          return previousGroups;
-        }
+      const token = await SecureStore.getItemAsync("userToken");
 
-        // Add new group at the beginning
-        return [newGroup, ...previousGroups];
-      });
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
 
-      // Clear the navigation parameter
-      navigation.setParams({ newGroup: undefined });
+      const result = await apiRequest(
+        "/api/conversations",
+        "GET",
+        null,
+        token
+      );
+
+      // Keep only group conversations
+      const groupConversations = result.conversations.filter(
+        (conversation) => conversation.type === "group"
+      );
+
+      setGroups(groupConversations);
+    } catch (error) {
+      console.log("Fetch groups error:", error.message);
+      setError(error.message || "Unable to load groups.");
+    } finally {
+      setIsLoading(false);
     }
-  }, [newGroup, navigation]);
+  }, []);
+
+  // Refresh groups whenever this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchGroups();
+    }, [fetchGroups])
+  );
+
+  // Format the message time
+  function formatMessageTime(dateValue) {
+    if (!dateValue) {
+      return "";
+    }
+
+    const messageDate = new Date(dateValue);
+    const today = new Date();
+
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (messageDate.toDateString() === today.toDateString()) {
+      return messageDate.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    if (messageDate.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+
+    if (messageDate.getFullYear() === today.getFullYear()) {
+      return messageDate.toLocaleDateString([], {
+        weekday: "long",
+      });
+    }
+
+    return messageDate.toLocaleDateString();
+  }
+
+  // Search groups by name
+  const filteredGroups = groups.filter((item) => {
+    return item.groupName
+      ?.toLowerCase()
+      .includes(search.toLowerCase());
+  });
+
+  // Display each group
+  function renderGroup({ item }) {
+    const lastMessage = item.lastMessage;
+
+    const senderId =
+      lastMessage?.sender?._id || lastMessage?.sender;
+
+    const senderName = lastMessage
+      ? String(senderId) === String(currentUserId)
+        ? "You"
+        : lastMessage.sender?.name || "Member"
+      : "";
+
+    const messagePreview = lastMessage
+      ? `${senderName}: ${lastMessage.text}`
+      : "No messages yet";
+
+    return (
+      <Pressable
+        style={styles.groupItem}
+        onPress={() =>
+          navigation.navigate("GroupChat", {
+            conversationId: item._id,
+            groupName: item.groupName,
+          })
+        }
+      >
+        {/* Group avatar */}
+        <View style={styles.groupAvatar}>
+          <Text style={styles.avatarText}>
+            {item.groupName.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        {/* Group information */}
+        <View style={styles.groupDetails}>
+          <Text style={styles.groupName} numberOfLines={1}>
+            {item.groupName}
+          </Text>
+
+          <Text style={styles.memberCount}>
+            {item.participants.length} members
+          </Text>
+
+          <Text style={styles.lastMessage} numberOfLines={1}>
+            {messagePreview}
+          </Text>
+        </View>
+
+        {/* Time and unread count */}
+        <View style={styles.rightSection}>
+          <Text style={styles.time}>
+            {formatMessageTime(lastMessage?.createdAt)}
+          </Text>
+
+          {item.unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadText}>
+                {item.unreadCount > 99 ? "99+" : item.unreadCount}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Pressable>
+    );
+  }
 
   // Theme-aware styles
   const styles = StyleSheet.create({
@@ -157,6 +244,7 @@ export default function GroupsScreen({ navigation, route }) {
 
     listContent: {
       paddingBottom: 100,
+      flexGrow: 1,
     },
 
     groupItem: {
@@ -230,7 +318,7 @@ export default function GroupsScreen({ navigation, route }) {
     },
 
     unreadText: {
-      color: theme.buttonText,
+      color: "#FFFFFF",
       fontSize: 11,
       fontWeight: "bold",
     },
@@ -240,6 +328,33 @@ export default function GroupsScreen({ navigation, route }) {
       textAlign: "center",
       marginTop: 40,
       fontSize: 14,
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    errorText: {
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginTop: 40,
+      fontSize: 14,
+    },
+
+    retryButton: {
+      alignSelf: "center",
+      marginTop: 15,
+      backgroundColor: theme.button,
+      paddingHorizontal: 22,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+
+    retryButtonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
     },
 
     createButton: {
@@ -264,63 +379,6 @@ export default function GroupsScreen({ navigation, route }) {
       lineHeight: 40,
     },
   });
-
-  // Search groups by name
-  const filteredGroups = groups.filter((item) => {
-    return item.name.toLowerCase().includes(search.toLowerCase());
-  });
-
-  // Display each group
-  function renderGroup({ item }) {
-    return (
-      <Pressable
-        style={styles.groupItem}
-        onPress={() =>
-          Alert.alert(
-            item.name,
-            "Group conversation will be implemented later."
-          )
-        }
-      >
-        {/* Group avatar */}
-        <View style={styles.groupAvatar}>
-          <Text style={styles.avatarText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-
-        {/* Group information */}
-        <View style={styles.groupDetails}>
-          <Text style={styles.groupName} numberOfLines={1}>
-            {item.name}
-          </Text>
-
-          <Text style={styles.memberCount}>
-            {item.members} members
-          </Text>
-
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.message}
-          </Text>
-        </View>
-
-        {/* Time and unread count */}
-        <View style={styles.rightSection}>
-          <Text style={styles.time}>
-            {item.time}
-          </Text>
-
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>
-                {item.unread}
-              </Text>
-            </View>
-          )}
-        </View>
-      </Pressable>
-    );
-  }
 
   return (
     <OrbitalBackground>
@@ -359,19 +417,44 @@ export default function GroupsScreen({ navigation, route }) {
           </Text>
         </View>
 
-        {/* Group list */}
-        <FlatList
-          data={filteredGroups}
-          renderItem={renderGroup}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              No groups found.
-            </Text>
-          }
-        />
+        {/* Loading state */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator
+              size="large"
+              color={theme.highlight}
+            />
+          </View>
+        ) : error ? (
+          <View>
+            <Text style={styles.errorText}>{error}</Text>
+
+            <Pressable
+              style={styles.retryButton}
+              onPress={fetchGroups}
+            >
+              <Text style={styles.retryButtonText}>
+                Try Again
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          /* Group list */
+          <FlatList
+            data={filteredGroups}
+            renderItem={renderGroup}
+            keyExtractor={(item) => item._id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                {search.length > 0
+                  ? "No groups match your search."
+                  : "No groups yet. Create your first group!"}
+              </Text>
+            }
+          />
+        )}
 
         {/* Create Group Button */}
         <Pressable
