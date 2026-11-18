@@ -1,5 +1,5 @@
 
-const API_URL = "http://127.0.0.1:9876";
+const API_URL = "http://10.7.30.78:9876";
 
 // Send a request to the ORBIT backend
 export async function apiRequest(endpoint, method, data, token) {

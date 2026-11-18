@@ -1,7 +1,7 @@
 
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://127.0.0.1:9876";
+const SOCKET_URL = "http://10.7.30.78:9876";
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
