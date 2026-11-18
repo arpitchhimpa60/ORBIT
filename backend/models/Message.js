@@ -37,6 +37,13 @@ const messageSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Original message being replied to
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
+
     // Delivery status of the message
     status: {
       type: String,

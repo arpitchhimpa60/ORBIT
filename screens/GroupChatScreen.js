@@ -43,6 +43,7 @@ export default function GroupChatScreen({ navigation, route }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedReply, setSelectedReply] = useState(null);
   const [fullScreenImage, setFullScreenImage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -335,6 +336,29 @@ export default function GroupChatScreen({ navigation, route }) {
     ])
   );
 
+  // Select a message to reply to
+  function selectReply(message) {
+    setSelectedReply(message);
+  }
+
+  // Cancel the current reply
+  function cancelReply() {
+    setSelectedReply(null);
+  }
+
+  // Get a short preview of a message being replied to
+  function getReplyPreview(message) {
+    if (!message) {
+      return "Original message unavailable";
+    }
+
+    if (message.type === "image") {
+      return "Photo";
+    }
+
+    return message.text || "Message";
+  }
+
   // Open the device gallery and select an image
   async function pickImage() {
     const image = await ImagePicker();
@@ -372,6 +396,7 @@ export default function GroupChatScreen({ navigation, route }) {
           type: "image",
           imageBase64: selectedImage.base64,
           mimeType: selectedImage.mimeType || "image/jpeg",
+          replyToId: selectedReply?._id,
         },
         token
       );
@@ -381,6 +406,7 @@ export default function GroupChatScreen({ navigation, route }) {
 
       // Close the image preview after successful sending
       setSelectedImage(null);
+      setSelectedReply(null);
     } catch (error) {
       console.log("Send group image error:", error.message);
 
@@ -416,6 +442,7 @@ export default function GroupChatScreen({ navigation, route }) {
         {
           conversationId: conversationId,
           text: messageText,
+          replyToId: selectedReply?._id,
         },
         token
       );
@@ -423,6 +450,7 @@ export default function GroupChatScreen({ navigation, route }) {
       addMessage(result.newMessage);
 
       setText("");
+      setSelectedReply(null);
     } catch (error) {
       console.log("Send group message error:", error.message);
 
@@ -598,6 +626,60 @@ export default function GroupChatScreen({ navigation, route }) {
       borderRadius: 16,
     },
 
+    replyPreview: {
+      backgroundColor: "rgba(0, 0, 0, 0.15)",
+      borderLeftWidth: 3,
+      borderLeftColor: theme.highlight,
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 8,
+    },
+
+    replyAuthor: {
+      color: theme.highlight,
+      fontSize: 12,
+      fontWeight: "bold",
+      marginBottom: 3,
+    },
+
+    replyContent: {
+      color: theme.text,
+      fontSize: 12,
+    },
+
+    replyImagePreview: {
+      width: 55,
+      height: 45,
+      borderRadius: 5,
+      marginTop: 4,
+    },
+
+    replyComposer: {
+      backgroundColor: theme.card,
+      borderLeftWidth: 3,
+      borderLeftColor: theme.highlight,
+      borderRadius: 10,
+      padding: 10,
+      marginBottom: 10,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    replyComposerDetails: {
+      flex: 1,
+    },
+
+    replyCancelButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+
+    replyCancelText: {
+      color: theme.text,
+      fontSize: 20,
+      fontWeight: "bold",
+    },
+
     myMessageBubble: {
       backgroundColor: theme.primary,
       borderBottomRightRadius: 4,
@@ -644,17 +726,17 @@ export default function GroupChatScreen({ navigation, route }) {
     },
 
     closeImageButton: {
-  position: "absolute",
-  top: 55,
-  left: 20,
-  zIndex: 1,
-  width: 42,
-  height: 42,
-  borderRadius: 21,
-  backgroundColor: "#333333",
-  justifyContent: "center",
-  alignItems: "center",
-},
+      position: "absolute",
+      top: 55,
+      left: 20,
+      zIndex: 1,
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: "#333333",
+      justifyContent: "center",
+      alignItems: "center",
+    },
 
     closeImageText: {
       color: "#FFFFFF",
@@ -779,7 +861,9 @@ export default function GroupChatScreen({ navigation, route }) {
           mine ? styles.myMessageRow : styles.otherMessageRow,
         ]}
       >
-        <View
+        <Pressable
+          onLongPress={() => selectReply(item)}
+          delayLongPress={350}
           style={[
             styles.messageBubble,
             mine ? styles.myMessageBubble : styles.otherMessageBubble,
@@ -791,8 +875,30 @@ export default function GroupChatScreen({ navigation, route }) {
             </Text>
           )}
 
+          {item.replyTo && (
+            <View style={styles.replyPreview}>
+              <Text style={styles.replyAuthor}>
+                {item.replyTo.sender?.name || "ORBIT User"}
+              </Text>
+
+              <Text style={styles.replyContent} numberOfLines={2}>
+                {getReplyPreview(item.replyTo)}
+              </Text>
+
+              {item.replyTo.type === "image" && item.replyTo.imageUrl && (
+                <Image
+                  source={{ uri: item.replyTo.imageUrl }}
+                  style={styles.replyImagePreview}
+                />
+              )}
+            </View>
+          )}
+
           {item.type === "image" && item.imageUrl ? (
-            <Pressable onPress={() => setFullScreenImage(item.imageUrl)}>
+            <Pressable
+              onPress={() => setFullScreenImage(item.imageUrl)}
+              onLongPress={() => selectReply(item)}
+            >
               <Image
                 source={{ uri: item.imageUrl }}
                 style={styles.messageImage}
@@ -816,7 +922,7 @@ export default function GroupChatScreen({ navigation, route }) {
                 : "✓ Sent"}
             </Text>
           )}
-        </View>
+        </Pressable>
       </View>
     );
   }
@@ -956,6 +1062,28 @@ export default function GroupChatScreen({ navigation, route }) {
                 </Text>
               }
             />
+          )}
+
+          {/* Reply preview above the message input */}
+          {selectedReply && (
+            <View style={styles.replyComposer}>
+              <View style={styles.replyComposerDetails}>
+                <Text style={styles.replyAuthor}>
+                  Replying to {selectedReply.sender?.name || "ORBIT User"}
+                </Text>
+
+                <Text style={styles.replyContent} numberOfLines={2}>
+                  {getReplyPreview(selectedReply)}
+                </Text>
+              </View>
+
+              <Pressable
+                style={styles.replyCancelButton}
+                onPress={cancelReply}
+              >
+                <Text style={styles.replyCancelText}>×</Text>
+              </Pressable>
+            </View>
           )}
 
           {/* Selected image preview */}

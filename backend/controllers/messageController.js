@@ -12,6 +12,7 @@ const sendMessage = async (req, res) => {
       text,
       imageBase64,
       mimeType,
+      replyToId,
     } = req.body;
 
     // Check conversation ID
@@ -67,6 +68,29 @@ const sendMessage = async (req, res) => {
       type: type,
     };
 
+    // Check whether this message is a reply
+    if (replyToId) {
+      if (!Message.db.base.Types.ObjectId.isValid(replyToId)) {
+        return res.status(400).json({
+          message: "Invalid original message ID",
+        });
+      }
+
+      // Find the original message in the same conversation
+      const originalMessage = await Message.findOne({
+        _id: replyToId,
+        conversation: conversationId,
+      });
+
+      if (!originalMessage) {
+        return res.status(404).json({
+          message: "Original message not found in this conversation",
+        });
+      }
+
+      messageData.replyTo = originalMessage._id;
+    }
+
     // Handle text messages
     if (type === "text") {
       messageData.text = text.trim();
@@ -93,9 +117,16 @@ const sendMessage = async (req, res) => {
     conversation.updatedAt = new Date();
     await conversation.save();
 
-    // Get the saved message with sender information
+    // Get the saved message with sender and reply information
     const populatedMessage = await Message.findById(message._id)
-      .populate("sender", "name username");
+      .populate("sender", "name username")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "name username",
+        },
+      });
 
     // Get the Socket.IO server
     const io = req.app.get("io");
@@ -153,6 +184,13 @@ const getMessages = async (req, res) => {
       conversation: conversationId,
     })
       .populate("sender", "name username")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "name username",
+        },
+      })
       .sort({ createdAt: 1 });
 
     res.status(200).json({
