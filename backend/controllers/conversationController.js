@@ -385,6 +385,7 @@ const markConversationRead = async (req, res) => {
     res.status(200).json({
       message: "Conversation marked as read",
     });
+
   } catch (error) {
     console.log("Mark conversation read error:", error.message);
 
@@ -394,10 +395,162 @@ const markConversationRead = async (req, res) => {
   }
 };
 
+
+// Rename a group (only the creator can do this)
+const renameGroup = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { groupName } = req.body;
+
+    if (!groupName || !groupName.trim()) {
+      return res.status(400).json({
+        message: "Group name is required",
+      });
+    }
+
+    if (groupName.trim().length > 40) {
+      return res.status(400).json({
+        message: "Group name cannot exceed 40 characters",
+      });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({
+        message: "Group not found",
+      });
+    }
+
+    if (conversation.type !== "group") {
+      return res.status(400).json({
+        message: "Only groups can be renamed",
+      });
+    }
+
+    const isCreator =
+      conversation.createdBy?.toString() === req.user._id.toString();
+
+    if (!isCreator) {
+      return res.status(403).json({
+        message: "Only the group creator can rename this group",
+      });
+    }
+
+    const isParticipant = conversation.participants.some(
+      (participant) =>
+        participant.toString() === req.user._id.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "You are no longer a member of this group",
+      });
+    }
+
+    conversation.groupName = groupName.trim();
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(
+      conversation._id
+    )
+      .populate("participants", "name username profilePicture")
+      .populate("createdBy", "name username");
+
+    res.status(200).json({
+      message: "Group renamed successfully",
+      conversation: updatedConversation,
+    });
+  } catch (error) {
+    console.log("Rename group error:", error.message);
+
+    res.status(500).json({
+      message: "Server error while renaming group",
+    });
+  }
+};
+
+
+// Leave a group (any member, including the creator, can leave)
+const leaveGroup = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({
+        message: "Group not found",
+      });
+    }
+
+    if (conversation.type !== "group") {
+      return res.status(400).json({
+        message: "You can only leave a group conversation",
+      });
+    }
+
+    const isParticipant = conversation.participants.some(
+      (participant) =>
+        participant.toString() === req.user._id.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "You are not a member of this group",
+      });
+    }
+
+    // Remove the user from the participants list
+    conversation.participants = conversation.participants.filter(
+      (participant) =>
+        participant.toString() !== req.user._id.toString()
+    );
+
+    // Remove their unread-message tracking entry
+    conversation.lastReadAt = conversation.lastReadAt.filter(
+      (entry) =>
+        entry.user.toString() !== req.user._id.toString()
+    );
+
+    // If nobody remains, delete the group and its messages
+    if (conversation.participants.length === 0) {
+      await Message.deleteMany({
+        conversation: conversation._id,
+      });
+
+      await Conversation.findByIdAndDelete(conversation._id);
+
+      return res.status(200).json({
+        message: "You left the group. The empty group was deleted.",
+        groupDeleted: true,
+      });
+    }
+
+    await conversation.save();
+
+    res.status(200).json({
+      message: "You left the group successfully",
+      groupDeleted: false,
+    });
+  } catch (error) {
+    console.log("Leave group error:", error.message);
+
+    res.status(500).json({
+      message: "Server error while leaving group",
+    });
+  }
+};
+
+
+
 module.exports = {
   createOrGetConversation,
   createGroup,
   addGroupMember,
+  renameGroup,
+  leaveGroup,
   getMyConversations,
   markConversationRead,
 };
+

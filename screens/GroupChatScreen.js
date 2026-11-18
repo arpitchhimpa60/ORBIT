@@ -1,10 +1,5 @@
 
-import {
-  useState,
-  useContext,
-  useCallback,
-  useRef,
-} from "react";
+import { useState, useContext, useCallback, useRef } from "react";
 
 import {
   View,
@@ -53,6 +48,15 @@ export default function GroupChatScreen({ navigation, route }) {
   const [memberEmail, setMemberEmail] = useState("");
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [memberCount, setMemberCount] = useState(null);
+
+  // Group settings
+  const [currentGroupName, setCurrentGroupName] = useState(groupName);
+  const [isCreator, setIsCreator] = useState(false);
+  const [showGroupOptions, setShowGroupOptions] = useState(false);
+  const [showRenameGroup, setShowRenameGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState(groupName);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const flatListRef = useRef(null);
   const pendingStatusUpdates = useRef({});
@@ -105,42 +109,45 @@ export default function GroupChatScreen({ navigation, route }) {
   }, [conversationId]);
 
   // Fetch group messages
-  const fetchMessages = useCallback(async (showLoader = true) => {
-    try {
-      if (showLoader) {
-        setIsLoading(true);
+  const fetchMessages = useCallback(
+    async (showLoader = true) => {
+      try {
+        if (showLoader) {
+          setIsLoading(true);
+        }
+
+        setError("");
+
+        const token = await SecureStore.getItemAsync("userToken");
+
+        if (!token) {
+          throw new Error("Please log in again.");
+        }
+
+        const result = await apiRequest(
+          `/api/messages/${conversationId}`,
+          "GET",
+          null,
+          token
+        );
+
+        setMessages(result.messages);
+
+        // Acknowledge messages received from other members
+        result.messages.forEach((message) => {
+          acknowledgeMessage(message);
+        });
+      } catch (error) {
+        console.log("Fetch group messages error:", error.message);
+        setError(error.message || "Unable to load group messages.");
+      } finally {
+        if (showLoader) {
+          setIsLoading(false);
+        }
       }
-
-      setError("");
-
-      const token = await SecureStore.getItemAsync("userToken");
-
-      if (!token) {
-        throw new Error("Please log in again.");
-      }
-
-      const result = await apiRequest(
-        `/api/messages/${conversationId}`,
-        "GET",
-        null,
-        token
-      );
-
-      setMessages(result.messages);
-
-      // Acknowledge messages received from other members
-      result.messages.forEach((message) => {
-        acknowledgeMessage(message);
-      });
-    } catch (error) {
-      console.log("Fetch group messages error:", error.message);
-      setError(error.message || "Unable to load group messages.");
-    } finally {
-      if (showLoader) {
-        setIsLoading(false);
-      }
-    }
-  }, [conversationId, user]);
+    },
+    [conversationId, user]
+  );
 
   // Add a message without duplicates
   const addMessage = useCallback((newMessage) => {
@@ -186,8 +193,7 @@ export default function GroupChatScreen({ navigation, route }) {
       );
 
       if (messageIndex === -1) {
-        pendingStatusUpdates.current[statusUpdate.messageId] =
-          statusUpdate;
+        pendingStatusUpdates.current[statusUpdate.messageId] = statusUpdate;
 
         return previousMessages;
       }
@@ -204,7 +210,7 @@ export default function GroupChatScreen({ navigation, route }) {
     });
   }, []);
 
-  // Fetch the current group member count
+  // Fetch the current group details
   const fetchGroupDetails = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
@@ -227,21 +233,38 @@ export default function GroupChatScreen({ navigation, route }) {
 
       if (currentGroup) {
         setMemberCount(currentGroup.participants.length);
+        setCurrentGroupName(currentGroup.groupName);
+
+        const creatorId =
+  currentGroup.createdBy?._id || currentGroup.createdBy;
+
+const currentUserId = getCurrentUserId();
+
+console.log("========== GROUP CREATOR DEBUG ==========");
+console.log("Group createdBy:", currentGroup.createdBy);
+console.log("Creator ID:", creatorId);
+console.log("Logged-in user:", user);
+console.log("Current user ID:", currentUserId);
+console.log("Are IDs matching:", String(creatorId) === String(currentUserId));
+console.log("==========================================");
+
+setIsCreator(
+  Boolean(creatorId) &&
+  Boolean(currentUserId) &&
+  String(creatorId) === String(currentUserId)
+);
       }
     } catch (error) {
       console.log("Fetch group details error:", error.message);
     }
-  }, [conversationId]);
+  }, [conversationId, user]);
 
   // Add a new member to this group
   async function addGroupMember() {
     const email = memberEmail.trim().toLowerCase();
 
     if (!email) {
-      Alert.alert(
-        "Email required",
-        "Enter the registered email address."
-      );
+      Alert.alert("Email required", "Enter the registered email address.");
       return;
     }
 
@@ -280,6 +303,116 @@ export default function GroupChatScreen({ navigation, route }) {
     }
   }
 
+  // Rename this group (creator only)
+  async function renameGroup() {
+    const trimmedName = newGroupName.trim();
+
+    if (!trimmedName) {
+      Alert.alert("Name required", "Enter a group name.");
+      return;
+    }
+
+    if (trimmedName.length > 40) {
+      Alert.alert(
+        "Name too long",
+        "Group name cannot exceed 40 characters."
+      );
+      return;
+    }
+
+    if (isRenaming) {
+      return;
+    }
+
+    try {
+      setIsRenaming(true);
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        `/api/conversations/${conversationId}/name`,
+        "PATCH",
+        { groupName: trimmedName },
+        token
+      );
+
+      setCurrentGroupName(result.conversation.groupName);
+      setNewGroupName(result.conversation.groupName);
+      setShowRenameGroup(false);
+      setShowGroupOptions(false);
+
+      Alert.alert("Success", "Group name updated.");
+    } catch (error) {
+      Alert.alert(
+        "Unable to rename group",
+        error.message || "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsRenaming(false);
+    }
+  }
+
+  // Leave this group
+  async function leaveGroup() {
+    if (isLeaving) {
+      return;
+    }
+
+    try {
+      setIsLeaving(true);
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      await apiRequest(
+        `/api/conversations/${conversationId}/leave`,
+        "DELETE",
+        null,
+        token
+      );
+
+      Alert.alert("Left group", "You have left the group.", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } catch (error) {
+      setIsLeaving(false);
+
+      Alert.alert(
+        "Unable to leave group",
+        error.message || "Something went wrong. Please try again."
+      );
+    }
+  }
+
+  // Ask for confirmation before leaving
+  function confirmLeaveGroup() {
+    Alert.alert(
+      "Leave group?",
+      "You will no longer receive messages from this group.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: leaveGroup,
+        },
+      ]
+    );
+  }
+
   // Listen for messages while this group is open
   useFocusEffect(
     useCallback(() => {
@@ -291,9 +424,7 @@ export default function GroupChatScreen({ navigation, route }) {
         const messageConversationId =
           newMessage.conversation?._id || newMessage.conversation;
 
-        if (
-          String(messageConversationId) !== String(conversationId)
-        ) {
+        if (String(messageConversationId) !== String(conversationId)) {
           return;
         }
 
@@ -845,14 +976,54 @@ export default function GroupChatScreen({ navigation, route }) {
       fontSize: 22,
       fontWeight: "bold",
     },
+
+    // Group options styles
+    groupOptionsContainer: {
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      padding: 12,
+      marginTop: 12,
+      gap: 10,
+    },
+
+    groupOptionButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 9,
+      backgroundColor: theme.input,
+    },
+
+    groupOptionText: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    leaveGroupText: {
+      color: "#E05A65",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    renameInput: {
+      backgroundColor: theme.input,
+      color: theme.text,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+      fontSize: 14,
+    },
   });
 
   // Display each message
   function renderMessage({ item }) {
     const mine = isMyMessage(item);
 
-    const senderName =
-      item.sender?.name || "ORBIT User";
+    const senderName = item.sender?.name || "ORBIT User";
 
     return (
       <View
@@ -870,9 +1041,7 @@ export default function GroupChatScreen({ navigation, route }) {
           ]}
         >
           {!mine && (
-            <Text style={styles.senderName}>
-              {senderName}
-            </Text>
+            <Text style={styles.senderName}>{senderName}</Text>
           )}
 
           {item.replyTo && (
@@ -946,13 +1115,13 @@ export default function GroupChatScreen({ navigation, route }) {
 
             <View style={styles.groupAvatar}>
               <Text style={styles.avatarText}>
-                {groupName.charAt(0).toUpperCase()}
+                {currentGroupName.charAt(0).toUpperCase()}
               </Text>
             </View>
 
             <View style={styles.headerDetails}>
               <Text style={styles.groupName} numberOfLines={1}>
-                {groupName}
+                {currentGroupName}
               </Text>
 
               <Text style={styles.groupSubtitle}>
@@ -964,13 +1133,99 @@ export default function GroupChatScreen({ navigation, route }) {
 
             <Pressable
               style={styles.addMemberButton}
-              onPress={() => setShowAddMember(!showAddMember)}
+              onPress={() => {
+                setShowAddMember(!showAddMember);
+                setShowGroupOptions(false);
+                setShowRenameGroup(false);
+              }}
             >
               <Text style={styles.addMemberButtonText}>
                 {showAddMember ? "Close" : "Add member"}
               </Text>
             </Pressable>
+
+            <Pressable
+              style={[styles.addMemberButton, { marginLeft: 6 }]}
+              onPress={() => {
+                setShowGroupOptions(!showGroupOptions);
+                setShowAddMember(false);
+                setShowRenameGroup(false);
+              }}
+            >
+              <Text style={styles.addMemberButtonText}>Options</Text>
+            </Pressable>
           </View>
+
+          {/* Group options */}
+          {showGroupOptions && (
+            <View style={styles.groupOptionsContainer}>
+              {isCreator && (
+                <Pressable
+                  style={styles.groupOptionButton}
+                  onPress={() => {
+                    setNewGroupName(currentGroupName);
+                    setShowRenameGroup(true);
+                    setShowGroupOptions(false);
+                  }}
+                >
+                  <Text style={styles.groupOptionText}>Rename group</Text>
+                </Pressable>
+              )}
+
+              <Pressable
+                style={styles.groupOptionButton}
+                onPress={confirmLeaveGroup}
+                disabled={isLeaving}
+              >
+                <Text style={styles.leaveGroupText}>
+                  {isLeaving ? "Leaving..." : "Leave group"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Rename group form */}
+          {showRenameGroup && (
+            <View style={styles.addMemberContainer}>
+              <Text style={styles.addMemberTitle}>Rename group</Text>
+
+              <TextInput
+                style={styles.renameInput}
+                placeholder="Enter new group name"
+                placeholderTextColor={theme.placeholder}
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+                maxLength={40}
+                autoCapitalize="words"
+                editable={!isRenaming}
+              />
+
+              <View style={styles.addMemberActions}>
+                <Pressable
+                  style={styles.cancelAddButton}
+                  onPress={() => {
+                    setShowRenameGroup(false);
+                    setNewGroupName(currentGroupName);
+                  }}
+                  disabled={isRenaming}
+                >
+                  <Text style={styles.cancelAddButtonText}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.confirmAddButton}
+                  onPress={renameGroup}
+                  disabled={isRenaming}
+                >
+                  {isRenaming ? (
+                    <ActivityIndicator color={theme.buttonText} />
+                  ) : (
+                    <Text style={styles.confirmAddButtonText}>Save</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           {/* Add member form */}
           {showAddMember && (
@@ -1000,9 +1255,7 @@ export default function GroupChatScreen({ navigation, route }) {
                   }}
                   disabled={isAddingMember}
                 >
-                  <Text style={styles.cancelAddButtonText}>
-                    Cancel
-                  </Text>
+                  <Text style={styles.cancelAddButtonText}>Cancel</Text>
                 </Pressable>
 
                 <Pressable
@@ -1013,9 +1266,7 @@ export default function GroupChatScreen({ navigation, route }) {
                   {isAddingMember ? (
                     <ActivityIndicator color={theme.buttonText} />
                   ) : (
-                    <Text style={styles.confirmAddButtonText}>
-                      Add
-                    </Text>
+                    <Text style={styles.confirmAddButtonText}>Add</Text>
                   )}
                 </Pressable>
               </View>
@@ -1025,10 +1276,7 @@ export default function GroupChatScreen({ navigation, route }) {
           {/* Messages */}
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator
-                size="large"
-                color={theme.highlight}
-              />
+              <ActivityIndicator size="large" color={theme.highlight} />
             </View>
           ) : error ? (
             <View style={styles.loadingContainer}>
@@ -1038,9 +1286,7 @@ export default function GroupChatScreen({ navigation, route }) {
                 style={styles.retryButton}
                 onPress={() => fetchMessages()}
               >
-                <Text style={styles.retryButtonText}>
-                  Try Again
-                </Text>
+                <Text style={styles.retryButtonText}>Try Again</Text>
               </Pressable>
             </View>
           ) : (
