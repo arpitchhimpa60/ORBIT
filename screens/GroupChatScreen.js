@@ -1,0 +1,862 @@
+
+import {
+  useState,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
+
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from "react-native";
+
+import { useFocusEffect } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
+
+import OrbitalBackground from "../components/OrbitalBackground";
+import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
+import { apiRequest } from "../services/api";
+import { socket } from "../services/socket";
+
+export default function GroupChatScreen({ navigation, route }) {
+  const { theme } = useContext(ThemeContext);
+  const { user } = useContext(AuthContext);
+
+  const { conversationId, groupName } = route.params;
+
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberEmail, setMemberEmail] = useState("");
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [memberCount, setMemberCount] = useState(null);
+
+  const flatListRef = useRef(null);
+  const pendingStatusUpdates = useRef({});
+
+  // Get logged-in user's ID
+  function getCurrentUserId() {
+    return user?._id || user?.id;
+  }
+
+  // Check whether the message belongs to the logged-in user
+  function isMyMessage(message) {
+    const senderId = message.sender?._id || message.sender;
+
+    return String(senderId) === String(getCurrentUserId());
+  }
+
+  // Acknowledge messages received from other group members
+  function acknowledgeMessage(message) {
+    if (!message || isMyMessage(message)) {
+      return;
+    }
+
+    if (message.status === "delivered") {
+      return;
+    }
+
+    socket.emit("messageDelivered", {
+      messageId: message._id,
+    });
+  }
+
+  // Mark this group conversation as read
+  const markConversationRead = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        return;
+      }
+
+      await apiRequest(
+        `/api/conversations/${conversationId}/read`,
+        "PATCH",
+        null,
+        token
+      );
+    } catch (error) {
+      console.log("Mark group as read error:", error.message);
+    }
+  }, [conversationId]);
+
+  // Fetch group messages
+  const fetchMessages = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) {
+        setIsLoading(true);
+      }
+
+      setError("");
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        `/api/messages/${conversationId}`,
+        "GET",
+        null,
+        token
+      );
+
+      setMessages(result.messages);
+
+      // Acknowledge messages received from other members
+      result.messages.forEach((message) => {
+        acknowledgeMessage(message);
+      });
+    } catch (error) {
+      console.log("Fetch group messages error:", error.message);
+      setError(error.message || "Unable to load group messages.");
+    } finally {
+      if (showLoader) {
+        setIsLoading(false);
+      }
+    }
+  }, [conversationId, user]);
+
+  // Add a message without duplicates
+  const addMessage = useCallback((newMessage) => {
+    setMessages((previousMessages) => {
+      const pendingUpdate = pendingStatusUpdates.current[newMessage._id];
+
+      const messageToAdd = pendingUpdate
+        ? {
+            ...newMessage,
+            status: pendingUpdate.status,
+            deliveredAt: pendingUpdate.deliveredAt,
+          }
+        : newMessage;
+
+      if (pendingUpdate) {
+        delete pendingStatusUpdates.current[newMessage._id];
+      }
+
+      const messageIndex = previousMessages.findIndex(
+        (message) => message._id === newMessage._id
+      );
+
+      if (messageIndex !== -1) {
+        const updatedMessages = [...previousMessages];
+
+        updatedMessages[messageIndex] = {
+          ...updatedMessages[messageIndex],
+          ...messageToAdd,
+        };
+
+        return updatedMessages;
+      }
+
+      return [...previousMessages, messageToAdd];
+    });
+  }, []);
+
+  // Update message delivery status
+  const updateMessageStatus = useCallback((statusUpdate) => {
+    setMessages((previousMessages) => {
+      const messageIndex = previousMessages.findIndex(
+        (message) => message._id === statusUpdate.messageId
+      );
+
+      if (messageIndex === -1) {
+        pendingStatusUpdates.current[statusUpdate.messageId] =
+          statusUpdate;
+
+        return previousMessages;
+      }
+
+      const updatedMessages = [...previousMessages];
+
+      updatedMessages[messageIndex] = {
+        ...updatedMessages[messageIndex],
+        status: statusUpdate.status,
+        deliveredAt: statusUpdate.deliveredAt,
+      };
+
+      return updatedMessages;
+    });
+  }, []);
+
+  // Fetch the current group member count
+  const fetchGroupDetails = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        return;
+      }
+
+      const result = await apiRequest(
+        "/api/conversations",
+        "GET",
+        null,
+        token
+      );
+
+      const currentGroup = result.conversations.find(
+        (conversation) =>
+          String(conversation._id) === String(conversationId)
+      );
+
+      if (currentGroup) {
+        setMemberCount(currentGroup.participants.length);
+      }
+    } catch (error) {
+      console.log("Fetch group details error:", error.message);
+    }
+  }, [conversationId]);
+
+  // Add a new member to this group
+  async function addGroupMember() {
+    const email = memberEmail.trim().toLowerCase();
+
+    if (!email) {
+      Alert.alert(
+        "Email required",
+        "Enter the registered email address."
+      );
+      return;
+    }
+
+    if (isAddingMember) {
+      return;
+    }
+
+    try {
+      setIsAddingMember(true);
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        `/api/conversations/${conversationId}/members`,
+        "POST",
+        { email: email },
+        token
+      );
+
+      setMemberCount(result.conversation.participants.length);
+      setMemberEmail("");
+      setShowAddMember(false);
+
+      Alert.alert("Success", "Member added to the group.");
+    } catch (error) {
+      Alert.alert(
+        "Unable to add member",
+        error.message || "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsAddingMember(false);
+    }
+  }
+
+  // Listen for messages while this group is open
+  useFocusEffect(
+    useCallback(() => {
+      fetchMessages();
+      markConversationRead();
+      fetchGroupDetails();
+
+      function handleNewMessage(newMessage) {
+        const messageConversationId =
+          newMessage.conversation?._id || newMessage.conversation;
+
+        if (
+          String(messageConversationId) !== String(conversationId)
+        ) {
+          return;
+        }
+
+        addMessage(newMessage);
+
+        acknowledgeMessage(newMessage);
+
+        // Mark incoming group messages as read
+        if (!isMyMessage(newMessage)) {
+          markConversationRead();
+        }
+      }
+
+      function handleMessageStatusUpdated(statusUpdate) {
+        updateMessageStatus(statusUpdate);
+      }
+
+      function handleSocketConnect() {
+        fetchMessages(false);
+        markConversationRead();
+      }
+
+      socket.on("newMessage", handleNewMessage);
+      socket.on("messageStatusUpdated", handleMessageStatusUpdated);
+      socket.on("connect", handleSocketConnect);
+
+      return () => {
+        socket.off("newMessage", handleNewMessage);
+        socket.off("messageStatusUpdated", handleMessageStatusUpdated);
+        socket.off("connect", handleSocketConnect);
+      };
+    }, [
+      conversationId,
+      fetchMessages,
+      fetchGroupDetails,
+      addMessage,
+      updateMessageStatus,
+      markConversationRead,
+      user,
+    ])
+  );
+
+  // Send a group message
+  async function sendMessage() {
+    const messageText = text.trim();
+
+    if (!messageText || isSending) {
+      return;
+    }
+
+    try {
+      setIsSending(true);
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const result = await apiRequest(
+        "/api/messages",
+        "POST",
+        {
+          conversationId: conversationId,
+          text: messageText,
+        },
+        token
+      );
+
+      addMessage(result.newMessage);
+
+      setText("");
+    } catch (error) {
+      console.log("Send group message error:", error.message);
+
+      Alert.alert(
+        "Message not sent",
+        error.message || "Something went wrong."
+      );
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  // Theme-aware styles
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 15,
+      paddingTop: 15,
+    },
+
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingBottom: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+
+    backButton: {
+      marginRight: 15,
+      padding: 8,
+    },
+
+    backText: {
+      color: theme.text,
+      fontSize: 28,
+    },
+
+    groupAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      backgroundColor: theme.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+
+    avatarText: {
+      color: "#FFFFFF",
+      fontSize: 19,
+      fontWeight: "bold",
+    },
+
+    groupName: {
+      color: theme.text,
+      fontSize: 18,
+      fontWeight: "bold",
+    },
+
+    groupSubtitle: {
+      color: theme.secondaryText,
+      fontSize: 12,
+      marginTop: 4,
+    },
+
+    headerDetails: {
+      flex: 1,
+    },
+
+    addMemberButton: {
+      backgroundColor: theme.button,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderRadius: 10,
+    },
+
+    addMemberButtonText: {
+      color: theme.buttonText,
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+
+    addMemberContainer: {
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      padding: 12,
+      marginTop: 12,
+      marginBottom: 12,
+    },
+
+    addMemberTitle: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "bold",
+      marginBottom: 10,
+    },
+
+    addMemberInput: {
+      backgroundColor: theme.input,
+      color: theme.text,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+      fontSize: 14,
+      marginBottom: 10,
+    },
+
+    addMemberActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    cancelAddButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+
+    cancelAddButtonText: {
+      color: theme.secondaryText,
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+
+    confirmAddButton: {
+      backgroundColor: theme.button,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      minWidth: 85,
+      alignItems: "center",
+    },
+
+    confirmAddButtonText: {
+      color: theme.buttonText,
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+
+    messageList: {
+      flex: 1,
+    },
+
+    messageListContent: {
+      paddingVertical: 15,
+      flexGrow: 1,
+      justifyContent: "flex-end",
+    },
+
+    messageRow: {
+      flexDirection: "row",
+      marginBottom: 12,
+    },
+
+    myMessageRow: {
+      justifyContent: "flex-end",
+    },
+
+    otherMessageRow: {
+      justifyContent: "flex-start",
+    },
+
+    messageBubble: {
+      maxWidth: "80%",
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      borderRadius: 16,
+    },
+
+    myMessageBubble: {
+      backgroundColor: theme.primary,
+      borderBottomRightRadius: 4,
+    },
+
+    otherMessageBubble: {
+      backgroundColor: theme.card,
+      borderBottomLeftRadius: 4,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+    senderName: {
+      color: theme.highlight,
+      fontSize: 11,
+      fontWeight: "bold",
+      marginBottom: 5,
+    },
+
+    messageText: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      lineHeight: 21,
+    },
+
+    otherMessageText: {
+      color: theme.text,
+    },
+
+    messageStatus: {
+      color: theme.secondaryText,
+      fontSize: 11,
+      textAlign: "right",
+      marginTop: 5,
+    },
+
+    emptyText: {
+      color: theme.secondaryText,
+      fontSize: 14,
+      textAlign: "center",
+      marginVertical: 20,
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    errorText: {
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginTop: 20,
+    },
+
+    retryButton: {
+      alignSelf: "center",
+      marginTop: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: theme.button,
+    },
+
+    retryButtonText: {
+      color: theme.buttonText,
+      fontWeight: "bold",
+    },
+
+    inputContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      gap: 10,
+    },
+
+    messageInput: {
+      flex: 1,
+      backgroundColor: theme.input,
+      color: theme.text,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 24,
+      paddingHorizontal: 17,
+      paddingVertical: 12,
+      fontSize: 14,
+      maxHeight: 100,
+    },
+
+    sendButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.button,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    disabledButton: {
+      opacity: 0.5,
+    },
+
+    sendButtonText: {
+      color: theme.buttonText,
+      fontSize: 22,
+      fontWeight: "bold",
+    },
+  });
+
+  // Display each message
+  function renderMessage({ item }) {
+    const mine = isMyMessage(item);
+
+    const senderName =
+      item.sender?.name || "ORBIT User";
+
+    return (
+      <View
+        style={[
+          styles.messageRow,
+          mine ? styles.myMessageRow : styles.otherMessageRow,
+        ]}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            mine ? styles.myMessageBubble : styles.otherMessageBubble,
+          ]}
+        >
+          {!mine && (
+            <Text style={styles.senderName}>
+              {senderName}
+            </Text>
+          )}
+
+          <Text
+            style={[
+              styles.messageText,
+              !mine && styles.otherMessageText,
+            ]}
+          >
+            {item.text}
+          </Text>
+
+          {mine && (
+            <Text style={styles.messageStatus}>
+              {item.status === "delivered"
+                ? "✓✓ Delivered"
+                : "✓ Sent"}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <OrbitalBackground>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.container}>
+          {/* Group header */}
+          <View style={styles.header}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backText}>‹</Text>
+            </Pressable>
+
+            <View style={styles.groupAvatar}>
+              <Text style={styles.avatarText}>
+                {groupName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+
+            <View style={styles.headerDetails}>
+              <Text style={styles.groupName} numberOfLines={1}>
+                {groupName}
+              </Text>
+
+              <Text style={styles.groupSubtitle}>
+                {memberCount === null
+                  ? "Group conversation"
+                  : `${memberCount} members`}
+              </Text>
+            </View>
+
+            <Pressable
+              style={styles.addMemberButton}
+              onPress={() => setShowAddMember(!showAddMember)}
+            >
+              <Text style={styles.addMemberButtonText}>
+                {showAddMember ? "Close" : "Add member"}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Add member form */}
+          {showAddMember && (
+            <View style={styles.addMemberContainer}>
+              <Text style={styles.addMemberTitle}>
+                Add a member by email
+              </Text>
+
+              <TextInput
+                style={styles.addMemberInput}
+                placeholder="Enter registered email"
+                placeholderTextColor={theme.placeholder}
+                value={memberEmail}
+                onChangeText={setMemberEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isAddingMember}
+              />
+
+              <View style={styles.addMemberActions}>
+                <Pressable
+                  style={styles.cancelAddButton}
+                  onPress={() => {
+                    setShowAddMember(false);
+                    setMemberEmail("");
+                  }}
+                  disabled={isAddingMember}
+                >
+                  <Text style={styles.cancelAddButtonText}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.confirmAddButton}
+                  onPress={addGroupMember}
+                  disabled={isAddingMember}
+                >
+                  {isAddingMember ? (
+                    <ActivityIndicator color={theme.buttonText} />
+                  ) : (
+                    <Text style={styles.confirmAddButtonText}>
+                      Add
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* Messages */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator
+                size="large"
+                color={theme.highlight}
+              />
+            </View>
+          ) : error ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+
+              <Pressable
+                style={styles.retryButton}
+                onPress={() => fetchMessages()}
+              >
+                <Text style={styles.retryButtonText}>
+                  Try Again
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              style={styles.messageList}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item._id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.messageListContent}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={() =>
+                flatListRef.current?.scrollToEnd({ animated: true })
+              }
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>
+                  No messages yet. Say hello to the group!
+                </Text>
+              }
+            />
+          )}
+
+          {/* Message input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Message the group..."
+              placeholderTextColor={theme.placeholder}
+              value={text}
+              onChangeText={setText}
+              multiline
+              maxLength={2000}
+              editable={!isSending}
+            />
+
+            <Pressable
+              style={[
+                styles.sendButton,
+                (!text.trim() || isSending) && styles.disabledButton,
+              ]}
+              onPress={sendMessage}
+              disabled={!text.trim() || isSending}
+            >
+              {isSending ? (
+                <ActivityIndicator color={theme.buttonText} />
+              ) : (
+                <Text style={styles.sendButtonText}>➤</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </OrbitalBackground>
+  );
+}

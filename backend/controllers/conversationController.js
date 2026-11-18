@@ -182,6 +182,109 @@ const createGroup = async (req, res) => {
   }
 };
 
+// Add a member to an existing group using their email
+const addGroupMember = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { email } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        message: "Email address is required",
+      });
+    }
+
+    // Find the group
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({
+        message: "Group not found",
+      });
+    }
+
+    // Check that this is a group conversation
+    if (conversation.type !== "group") {
+      return res.status(400).json({
+        message: "Members can only be added to groups",
+      });
+    }
+
+    // Check whether the logged-in user belongs to this group
+    const isParticipant = conversation.participants.some(
+      (participant) =>
+        participant.toString() === req.user._id.toString()
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: "Only group members can add new members",
+      });
+    }
+
+    // Find the user using their registered email
+    const newMember = await User.findOne({
+      email: email.trim().toLowerCase(),
+    }).select("_id name username profilePicture");
+
+    if (!newMember) {
+      return res.status(404).json({
+        message: "No user found with this email address",
+      });
+    }
+
+    // Prevent adding yourself
+    if (newMember._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({
+        message: "You cannot add yourself to the group",
+      });
+    }
+
+    // Prevent adding someone who is already a member
+    const alreadyMember = conversation.participants.some(
+      (participant) =>
+        participant.toString() === newMember._id.toString()
+    );
+
+    if (alreadyMember) {
+      return res.status(400).json({
+        message: "This user is already a group member",
+      });
+    }
+
+    const currentDate = new Date();
+
+    // Add the new user to the group
+    conversation.participants.push(newMember._id);
+
+    // Initialize their unread-message tracking
+    conversation.lastReadAt.push({
+      user: newMember._id,
+      date: currentDate,
+    });
+
+    await conversation.save();
+
+    // Get the updated group with participant details
+    const updatedConversation = await Conversation.findById(
+      conversation._id
+    )
+      .populate("participants", "name username profilePicture")
+      .populate("createdBy", "name username");
+
+    res.status(200).json({
+      message: "Member added successfully",
+      conversation: updatedConversation,
+    });
+  } catch (error) {
+    console.log("Add group member error:", error.message);
+
+    res.status(500).json({
+      message: "Server error while adding group member",
+    });
+  }
+};
+
 // Get all conversations of the logged-in user
 const getMyConversations = async (req, res) => {
   try {
@@ -294,6 +397,7 @@ const markConversationRead = async (req, res) => {
 module.exports = {
   createOrGetConversation,
   createGroup,
+  addGroupMember,
   getMyConversations,
   markConversationRead,
 };
