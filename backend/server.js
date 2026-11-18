@@ -29,8 +29,13 @@ const io = new Server(server, {
   },
 });
 
-// Make Socket.IO available inside controllers
+// Store active connections for each user
+// Map format: userId -> Set of socket IDs
+const onlineUsers = new Map();
+
+// Make Socket.IO and online users available inside controllers
 app.set("io", io);
+app.set("onlineUsers", onlineUsers);
 
 // Middleware
 app.use(cors());
@@ -81,6 +86,27 @@ io.on("connection", (socket) => {
   socket.join(`user:${socket.userId}`);
 
   console.log(`User joined room: user:${socket.userId}`);
+
+  // Add this socket connection to the user's active connections
+  let userConnections = onlineUsers.get(socket.userId);
+
+  const isFirstConnection = !userConnections;
+
+  if (!userConnections) {
+    userConnections = new Set();
+    onlineUsers.set(socket.userId, userConnections);
+  }
+
+  userConnections.add(socket.id);
+
+  // Notify everyone only when the user becomes online for the first time
+  if (isFirstConnection) {
+    io.emit("userOnline", {
+      userId: socket.userId,
+    });
+
+    console.log("User is now online:", socket.userId);
+  }
 
   // Handle message delivery acknowledgement
   socket.on("messageDelivered", async (data) => {
@@ -156,9 +182,52 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("disconnect", () => {
+  // Handle disconnection
+  socket.on("disconnect", async () => {
     console.log("User disconnected:", socket.userId);
+
+    const userConnections = onlineUsers.get(socket.userId);
+
+    if (!userConnections) {
+      return;
+    }
+
+    // Remove this particular device connection
+    userConnections.delete(socket.id);
+
+    // If another device is still connected, keep the user online
+    if (userConnections.size > 0) {
+      console.log("User still online on another device:", socket.userId);
+      return;
+    }
+
+    // No active connections remain
+    onlineUsers.delete(socket.userId);
+
+    const lastSeen = new Date();
+
+    try {
+      // Save the user's last online time
+      await User.findByIdAndUpdate(socket.userId, {
+        $set: {
+          lastSeen: lastSeen,
+        },
+      });
+
+      // Notify everyone that the user is offline
+      if (!onlineUsers.has(socket.userId)) {
+        io.emit("userOffline", {
+          userId: socket.userId,
+          lastSeen: lastSeen,
+        });
+
+        console.log("User is now offline:", socket.userId);
+      }
+    } catch (error) {
+      console.log("Last seen update error:", error.message);
+    }
   });
+
 });
 
 // Connect to MongoDB and start server

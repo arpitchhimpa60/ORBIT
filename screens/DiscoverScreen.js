@@ -9,6 +9,7 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 
 import * as SecureStore from "expo-secure-store";
@@ -17,8 +18,9 @@ import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
+import { socket } from "../services/socket";
 
-export default function DiscoverScreen() {
+export default function DiscoverScreen({ navigation }) {
   const { theme } = useContext(ThemeContext);
   const { user: currentUser } = useContext(AuthContext);
 
@@ -26,6 +28,7 @@ export default function DiscoverScreen() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [startingChatId, setStartingChatId] = useState(null);
 
   // Fetch registered users from the backend
   async function fetchUsers() {
@@ -54,10 +57,158 @@ export default function DiscoverScreen() {
     }
   }
 
+  // Update one user's online status
+  function updateUserStatus(userId, isOnline, lastSeen = null) {
+    setUsers((previousUsers) => {
+      return previousUsers.map((user) => {
+        if (user._id !== userId) {
+          return user;
+        }
+
+        return {
+          ...user,
+          isOnline: isOnline,
+          lastSeen: lastSeen || user.lastSeen,
+        };
+      });
+    });
+  }
+
   // Fetch users when Discover screen opens
+  // Listen for live online/offline updates
   useEffect(() => {
     fetchUsers();
+
+    function handleUserOnline(data) {
+      if (!data || !data.userId) {
+        return;
+      }
+
+      updateUserStatus(data.userId, true);
+    }
+
+    function handleUserOffline(data) {
+      if (!data || !data.userId) {
+        return;
+      }
+
+      updateUserStatus(
+        data.userId,
+        false,
+        data.lastSeen
+      );
+    }
+
+    // Refresh the list when Socket.IO reconnects
+    function handleSocketConnect() {
+      fetchUsers();
+    }
+
+    socket.on("userOnline", handleUserOnline);
+    socket.on("userOffline", handleUserOffline);
+    socket.on("connect", handleSocketConnect);
+
+    return () => {
+      socket.off("userOnline", handleUserOnline);
+      socket.off("userOffline", handleUserOffline);
+      socket.off("connect", handleSocketConnect);
+    };
   }, []);
+
+  // Format the last seen date
+  function formatLastSeen(lastSeen) {
+    if (!lastSeen) {
+      return "Last seen recently";
+    }
+
+    const date = new Date(lastSeen);
+
+    if (isNaN(date.getTime())) {
+      return "Last seen recently";
+    }
+
+    const now = new Date();
+
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isYesterday =
+      date.getDate() === yesterday.getDate() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getFullYear() === yesterday.getFullYear();
+
+    const time = date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (isToday) {
+      return `Last seen today at ${time}`;
+    }
+
+    if (isYesterday) {
+      return `Last seen yesterday at ${time}`;
+    }
+
+    const dateText = date.toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+
+    return `Last seen ${dateText} at ${time}`;
+  }
+
+  // Start a private conversation with the selected user
+  async function startPrivateChat(selectedUser) {
+    if (startingChatId) {
+      return;
+    }
+
+    try {
+      setStartingChatId(selectedUser._id);
+
+      const token = await SecureStore.getItemAsync("userToken");
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      // Create a conversation or get the existing one
+      const result = await apiRequest(
+        "/api/conversations",
+        "POST",
+        {
+          receiverId: selectedUser._id,
+        },
+        token
+      );
+
+      // Open the private chat screen
+      navigation.navigate("PrivateChat", {
+        conversationId: result.conversation._id,
+        otherUser: {
+          _id: selectedUser._id,
+          name: selectedUser.name,
+          username: selectedUser.username,
+        },
+      });
+    } catch (error) {
+      console.log("Start private chat error:", error.message);
+
+      Alert.alert(
+        "Unable to open chat",
+        error.message || "Something went wrong. Please try again."
+      );
+    } finally {
+      setStartingChatId(null);
+    }
+  }
 
   const styles = StyleSheet.create({
     container: {
@@ -171,10 +322,22 @@ export default function DiscoverScreen() {
       marginTop: 4,
     },
 
+    statusContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 6,
+    },
+
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 6,
+    },
+
     status: {
       color: theme.placeholder,
       fontSize: 11,
-      marginTop: 4,
     },
 
     messageButton: {
@@ -240,6 +403,8 @@ export default function DiscoverScreen() {
       ? item.username
       : `@${item.username}`;
 
+    const isStartingChat = startingChatId === item._id;
+
     return (
       <View style={styles.userItem}>
         {/* Avatar */}
@@ -259,21 +424,46 @@ export default function DiscoverScreen() {
             {displayUsername}
           </Text>
 
-          <Text style={styles.status}>
-            Status unavailable
-          </Text>
+          {/* Online / Offline status */}
+          <View style={styles.statusContainer}>
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: item.isOnline
+                    ? "#35C759"
+                    : "#929292",
+                },
+              ]}
+            />
+
+            <Text style={styles.status} numberOfLines={1}>
+              {item.isOnline
+                ? "Online"
+                : formatLastSeen(item.lastSeen)}
+            </Text>
+          </View>
         </View>
 
         {/* Message button */}
         <Pressable
-          style={styles.messageButton}
-          onPress={() => {
-            // Chat functionality will be implemented later
-          }}
+          style={[
+            styles.messageButton,
+            startingChatId && { opacity: 0.6 },
+          ]}
+          disabled={startingChatId !== null}
+          onPress={() => startPrivateChat(item)}
         >
-          <Text style={styles.messageButtonText}>
-            Message
-          </Text>
+          {isStartingChat ? (
+            <ActivityIndicator
+              size="small"
+              color={theme.buttonText}
+            />
+          ) : (
+            <Text style={styles.messageButtonText}>
+              Message
+            </Text>
+          )}
         </Pressable>
       </View>
     );
