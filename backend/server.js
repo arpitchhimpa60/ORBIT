@@ -9,6 +9,8 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const User = require("./models/User");
+const Message = require("./models/Message");
+const Conversation = require("./models/Conversation");
 
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -79,6 +81,80 @@ io.on("connection", (socket) => {
   socket.join(`user:${socket.userId}`);
 
   console.log(`User joined room: user:${socket.userId}`);
+
+  // Handle message delivery acknowledgement
+  socket.on("messageDelivered", async (data) => {
+    try {
+      const { messageId } = data || {};
+
+      if (!messageId) {
+        return;
+      }
+
+      // Find the message
+      const message = await Message.findById(messageId);
+
+      if (!message) {
+        return;
+      }
+
+      // Find the conversation
+      const conversation = await Conversation.findById(
+        message.conversation
+      );
+
+      if (!conversation) {
+        return;
+      }
+
+      // Check whether the connected user belongs to this conversation
+      const isParticipant = conversation.participants.some(
+        (participant) => participant.toString() === socket.userId
+      );
+
+      if (!isParticipant) {
+        return;
+      }
+
+      // The sender cannot acknowledge their own message
+      if (message.sender.toString() === socket.userId) {
+        return;
+      }
+
+      // Update only messages that have not already been delivered
+      const updatedMessage = await Message.findOneAndUpdate(
+        {
+          _id: messageId,
+          status: "sent",
+        },
+        {
+          $set: {
+            status: "delivered",
+            deliveredAt: new Date(),
+          },
+        },
+        {
+          new: true,
+        }
+      );
+
+      // Notify the sender's connected devices
+      if (updatedMessage) {
+        io.to(`user:${message.sender.toString()}`).emit(
+          "messageStatusUpdated",
+          {
+            messageId: updatedMessage._id.toString(),
+            status: updatedMessage.status,
+            deliveredAt: updatedMessage.deliveredAt,
+          }
+        );
+
+        console.log("Message delivered:", messageId);
+      }
+    } catch (error) {
+      console.log("Delivery acknowledgement error:", error.message);
+    }
+  });
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.userId);

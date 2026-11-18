@@ -42,6 +42,36 @@ export default function PrivateChatScreen({ navigation, route }) {
 
   const flatListRef = useRef(null);
 
+  // Store delivery updates that arrive before their messages
+  const pendingStatusUpdates = useRef({});
+
+  // Get the logged-in user's ID
+  function getCurrentUserId() {
+    return user?._id || user?.id;
+  }
+
+  // Check whether a message belongs to the logged-in user
+  function isMyMessage(message) {
+    const senderId = message.sender?._id || message.sender;
+
+    return String(senderId) === String(getCurrentUserId());
+  }
+
+  // Acknowledge a message received from another user
+  function acknowledgeMessage(message) {
+    if (!message || isMyMessage(message)) {
+      return;
+    }
+
+    if (message.status === "delivered") {
+      return;
+    }
+
+    socket.emit("messageDelivered", {
+      messageId: message._id,
+    });
+  }
+
   // Fetch messages from the backend
   const fetchMessages = useCallback(async (showLoader = true) => {
     try {
@@ -65,6 +95,11 @@ export default function PrivateChatScreen({ navigation, route }) {
       );
 
       setMessages(result.messages);
+
+      // Acknowledge previously sent messages when opening the chat
+      result.messages.forEach((message) => {
+        acknowledgeMessage(message);
+      });
     } catch (error) {
       console.log("Fetch messages error:", error.message);
       setError(error.message || "Unable to load messages.");
@@ -73,20 +108,66 @@ export default function PrivateChatScreen({ navigation, route }) {
         setIsLoading(false);
       }
     }
-  }, [conversationId]);
+  }, [conversationId, user]);
 
   // Add a message without creating duplicates
   const addMessage = useCallback((newMessage) => {
     setMessages((previousMessages) => {
-      const alreadyExists = previousMessages.some(
+      const pendingUpdate = pendingStatusUpdates.current[newMessage._id];
+
+      const messageToAdd = pendingUpdate
+        ? {
+            ...newMessage,
+            status: pendingUpdate.status,
+            deliveredAt: pendingUpdate.deliveredAt,
+          }
+        : newMessage;
+
+      if (pendingUpdate) {
+        delete pendingStatusUpdates.current[newMessage._id];
+      }
+
+      const messageIndex = previousMessages.findIndex(
         (message) => message._id === newMessage._id
       );
 
-      if (alreadyExists) {
+      if (messageIndex !== -1) {
+        const updatedMessages = [...previousMessages];
+        updatedMessages[messageIndex] = {
+          ...updatedMessages[messageIndex],
+          ...messageToAdd,
+        };
+
+        return updatedMessages;
+      }
+
+      return [...previousMessages, messageToAdd];
+    });
+  }, []);
+
+  // Update the status of an existing message
+  const updateMessageStatus = useCallback((statusUpdate) => {
+    setMessages((previousMessages) => {
+      const messageIndex = previousMessages.findIndex(
+        (message) => message._id === statusUpdate.messageId
+      );
+
+      if (messageIndex === -1) {
+        // Keep the update until the message is added
+        pendingStatusUpdates.current[statusUpdate.messageId] = statusUpdate;
+
         return previousMessages;
       }
 
-      return [...previousMessages, newMessage];
+      const updatedMessages = [...previousMessages];
+
+      updatedMessages[messageIndex] = {
+        ...updatedMessages[messageIndex],
+        status: statusUpdate.status,
+        deliveredAt: statusUpdate.deliveredAt,
+      };
+
+      return updatedMessages;
     });
   }, []);
 
@@ -97,11 +178,20 @@ export default function PrivateChatScreen({ navigation, route }) {
 
       function handleNewMessage(newMessage) {
         // Ignore messages from other conversations
-        if (String(newMessage.conversation) !== String(conversationId)) {
+        if (
+          String(newMessage.conversation) !== String(conversationId)
+        ) {
           return;
         }
 
         addMessage(newMessage);
+
+        // Acknowledge only messages sent by another user
+        acknowledgeMessage(newMessage);
+      }
+
+      function handleMessageStatusUpdated(statusUpdate) {
+        updateMessageStatus(statusUpdate);
       }
 
       // Refresh history after reconnecting
@@ -110,13 +200,20 @@ export default function PrivateChatScreen({ navigation, route }) {
       }
 
       socket.on("newMessage", handleNewMessage);
+      socket.on("messageStatusUpdated", handleMessageStatusUpdated);
       socket.on("connect", handleSocketConnect);
 
       return () => {
         socket.off("newMessage", handleNewMessage);
+        socket.off("messageStatusUpdated", handleMessageStatusUpdated);
         socket.off("connect", handleSocketConnect);
       };
-    }, [conversationId, fetchMessages, addMessage])
+    }, [
+      conversationId,
+      fetchMessages,
+      addMessage,
+      updateMessageStatus,
+    ])
   );
 
   // Send a new message
@@ -147,7 +244,7 @@ export default function PrivateChatScreen({ navigation, route }) {
       );
 
       // Add the saved message from the HTTP response
-      // The socket event may also arrive, but addMessage prevents duplicates
+      // addMessage prevents duplicates from Socket.IO
       addMessage(result.newMessage);
 
       setText("");
@@ -161,14 +258,6 @@ export default function PrivateChatScreen({ navigation, route }) {
     } finally {
       setIsSending(false);
     }
-  }
-
-  // Check whether a message belongs to the logged-in user
-  function isMyMessage(message) {
-    const senderId = message.sender?._id || message.sender;
-    const currentUserId = user?._id || user?.id;
-
-    return String(senderId) === String(currentUserId);
   }
 
   // Theme-aware styles
@@ -259,6 +348,13 @@ export default function PrivateChatScreen({ navigation, route }) {
 
     otherMessageText: {
       color: theme.text,
+    },
+
+    messageStatus: {
+      color: theme.secondaryText,
+      fontSize: 11,
+      textAlign: "right",
+      marginTop: 5,
     },
 
     emptyText: {
@@ -361,6 +457,14 @@ export default function PrivateChatScreen({ navigation, route }) {
           >
             {item.text}
           </Text>
+
+          {mine && (
+            <Text style={styles.messageStatus}>
+              {item.status === "delivered"
+                ? "✓✓ Delivered"
+                : "✓ Sent"}
+            </Text>
+          )}
         </View>
       </View>
     );

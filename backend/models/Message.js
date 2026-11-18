@@ -23,6 +23,19 @@ const messageSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
+    // Delivery status of the message
+    status: {
+      type: String,
+      enum: ["sent", "delivered"],
+      default: "sent",
+    },
+
+    // Time when the recipient received the message
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -32,4 +45,3 @@ const messageSchema = new mongoose.Schema(
 const Message = mongoose.model("Message", messageSchema);
 
 module.exports = Message;
-
