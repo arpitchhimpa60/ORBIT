@@ -1,4 +1,3 @@
-
 import { useState, useContext } from "react";
 
 import {
@@ -31,129 +30,153 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const styles = StyleSheet.create({
-    container: {
+    scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingHorizontal: 28,
-      paddingVertical: 55,
+      paddingHorizontal: 24,
+      paddingTop: 76,
+      paddingBottom: 36,
     },
-
     backButton: {
       position: "absolute",
-      top: 55,
-      left: 28,
+      top: 18,
+      left: 24,
       zIndex: 1,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
     },
-
     backText: {
       color: theme.text,
-      fontSize: 16,
-      fontWeight: "600",
+      fontSize: 28,
+      lineHeight: 31,
+      marginTop: -3,
     },
-
     content: {
+      width: "100%",
+      maxWidth: 480,
+      alignSelf: "center",
       alignItems: "center",
     },
-
     logo: {
-      fontSize: 36,
-      fontWeight: "bold",
       color: theme.text,
-      letterSpacing: 4,
+      fontSize: 34,
+      fontWeight: "800",
+      letterSpacing: 5,
     },
-
+    tagline: {
+      color: theme.secondaryText,
+      fontSize: 11,
+      letterSpacing: 2,
+      marginTop: 5,
+      textTransform: "uppercase",
+    },
     heading: {
-      fontSize: 27,
-      fontWeight: "bold",
       color: theme.text,
+      fontSize: 27,
+      fontWeight: "700",
       marginTop: 25,
+      textAlign: "center",
     },
-
     description: {
       color: theme.secondaryText,
       fontSize: 14,
-      marginTop: 9,
+      lineHeight: 21,
+      marginTop: 8,
       textAlign: "center",
     },
-
     form: {
       width: "100%",
-      marginTop: 25,
+      marginTop: 24,
     },
-
     label: {
       color: theme.text,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
       marginBottom: 8,
       marginTop: 15,
     },
-
     input: {
+      minHeight: 52,
       backgroundColor: theme.input,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: 12,
-      padding: 14,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
       color: theme.text,
       fontSize: 15,
     },
-
     passwordContainer: {
+      minHeight: 52,
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: theme.input,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: 12,
-      paddingHorizontal: 15,
+      borderRadius: 14,
+      paddingLeft: 16,
+      paddingRight: 10,
     },
-
     passwordInput: {
       flex: 1,
-      paddingVertical: 14,
+      minWidth: 0,
+      paddingVertical: 13,
       color: theme.text,
       fontSize: 15,
     },
-
-    showPassword: {
-      color: theme.highlight,
-      fontWeight: "bold",
-      paddingLeft: 10,
+    visibilityButton: {
+      minWidth: 54,
+      minHeight: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 8,
+      borderRadius: 10,
     },
-
+    visibilityText: {
+      color: theme.highlight,
+      fontSize: 12,
+      fontWeight: "700",
+    },
     primaryButton: {
+      minHeight: 54,
       backgroundColor: theme.button,
       borderWidth: 1,
       borderColor: theme.border,
-      padding: 16,
-      borderRadius: 12,
+      paddingHorizontal: 18,
+      borderRadius: 14,
       alignItems: "center",
-      marginTop: 30,
-      opacity: loading ? 0.6 : 1,
+      justifyContent: "center",
+      marginTop: 28,
+      opacity: loading ? 0.65 : 1,
     },
-
     primaryButtonText: {
       color: theme.buttonText,
       fontSize: 16,
-      fontWeight: "bold",
+      fontWeight: "700",
     },
-
     footer: {
       flexDirection: "row",
       marginTop: 25,
       alignItems: "center",
-      flexWrap: "wrap",
       justifyContent: "center",
+      flexWrap: "wrap",
     },
-
     footerText: {
       color: theme.secondaryText,
+      fontSize: 13,
     },
-
     link: {
       color: theme.highlight,
-      fontWeight: "bold",
+      fontSize: 13,
+      fontWeight: "700",
+      paddingVertical: 6,
+      paddingHorizontal: 3,
     },
   });
 
@@ -206,7 +229,7 @@ export default function RegisterScreen({ navigation }) {
     try {
       setLoading(true);
 
-      const result = await apiRequest("/api/auth/register", "POST", {
+      await apiRequest("/api/auth/register", "POST", {
         name: nameValue,
         username: usernameValue,
         email: emailValue,
@@ -239,39 +262,45 @@ export default function RegisterScreen({ navigation }) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           showsVerticalScrollIndicator={false}
         >
           <Pressable
             onPress={() => navigation.goBack()}
             style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={8}
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={styles.backText}>‹</Text>
           </Pressable>
 
           <View style={styles.content}>
             <Text style={styles.logo}>ORBIT</Text>
+            <Text style={styles.tagline}>Stay Connected. Stay in Orbit.</Text>
 
             <Text style={styles.heading}>Create Account</Text>
-
             <Text style={styles.description}>
-              Join ORBIT and stay connected.
+              Join ORBIT and stay connected with your people.
             </Text>
 
             <View style={styles.form}>
               <Text style={styles.label}>Full Name</Text>
-
               <TextInput
                 style={styles.input}
                 placeholder="Enter your name"
                 placeholderTextColor={theme.placeholder}
                 value={name}
                 onChangeText={setName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                autoComplete="name"
+                returnKeyType="next"
               />
 
               <Text style={styles.label}>Username</Text>
-
               <TextInput
                 style={styles.input}
                 placeholder="Choose a username"
@@ -280,10 +309,11 @@ export default function RegisterScreen({ navigation }) {
                 onChangeText={setUsername}
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="username"
+                returnKeyType="next"
               />
 
               <Text style={styles.label}>Email Address</Text>
-
               <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
@@ -293,10 +323,11 @@ export default function RegisterScreen({ navigation }) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                returnKeyType="next"
               />
 
               <Text style={styles.label}>Password</Text>
-
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
@@ -306,19 +337,24 @@ export default function RegisterScreen({ navigation }) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="new-password"
+                  returnKeyType="next"
                 />
-
                 <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.visibilityButton}
+                  onPress={() => setShowPassword((current) => !current)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  hitSlop={6}
                 >
-                  <Text style={styles.showPassword}>
-                    {showPassword ? "Hide" : "Show"}
+                  <Text style={styles.visibilityText}>
+                    {showPassword ? "HIDE" : "SHOW"}
                   </Text>
                 </Pressable>
               </View>
 
               <Text style={styles.label}>Confirm Password</Text>
-
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
@@ -328,15 +364,26 @@ export default function RegisterScreen({ navigation }) {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="new-password"
+                  returnKeyType="done"
+                  onSubmitEditing={handleRegister}
                 />
-
                 <Pressable
+                  style={styles.visibilityButton}
                   onPress={() =>
-                    setShowConfirmPassword(!showConfirmPassword)
+                    setShowConfirmPassword((current) => !current)
                   }
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    showConfirmPassword
+                      ? "Hide confirm password"
+                      : "Show confirm password"
+                  }
+                  hitSlop={6}
                 >
-                  <Text style={styles.showPassword}>
-                    {showConfirmPassword ? "Hide" : "Show"}
+                  <Text style={styles.visibilityText}>
+                    {showConfirmPassword ? "HIDE" : "SHOW"}
                   </Text>
                 </Pressable>
               </View>
@@ -345,6 +392,8 @@ export default function RegisterScreen({ navigation }) {
                 style={styles.primaryButton}
                 onPress={handleRegister}
                 disabled={loading}
+                accessibilityRole="button"
+                accessibilityLabel="Create account"
               >
                 <Text style={styles.primaryButtonText}>
                   {loading ? "Creating Account..." : "Create Account"}
@@ -353,11 +402,12 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                Already have an account?
-              </Text>
-
-              <Pressable onPress={() => navigation.navigate("Login")}>
+              <Text style={styles.footerText}>Already have an account?</Text>
+              <Pressable
+                onPress={() => navigation.navigate("Login")}
+                accessibilityRole="button"
+                hitSlop={6}
+              >
                 <Text style={styles.link}> Login</Text>
               </Pressable>
             </View>
