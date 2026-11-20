@@ -12,6 +12,7 @@ import {
   ScrollView,
   Platform,
   Image,
+  ActivityIndicator,
 } from "react-native";
 
 import OrbitalBackground from "../components/OrbitalBackground";
@@ -42,19 +43,19 @@ export default function EditProfileScreen({ navigation, route }) {
     container: {
       flex: 1,
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 24,
     },
 
     header: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 30,
+      marginBottom: 24,
     },
 
     backButton: {
       width: 44,
       height: 44,
-      borderRadius: 13,
+      borderRadius: 22,
       backgroundColor: theme.card,
       borderWidth: 1,
       borderColor: theme.border,
@@ -65,8 +66,8 @@ export default function EditProfileScreen({ navigation, route }) {
 
     backText: {
       color: theme.text,
-      fontSize: 32,
-      lineHeight: 36,
+      fontSize: 28,
+      lineHeight: 32,
     },
 
     heading: {
@@ -87,8 +88,8 @@ export default function EditProfileScreen({ navigation, route }) {
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: 20,
-      padding: 22,
-      marginBottom: 25,
+      padding: 24,
+      marginBottom: 24,
     },
 
     avatar: {
@@ -137,11 +138,12 @@ export default function EditProfileScreen({ navigation, route }) {
       backgroundColor: theme.input,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: 13,
-      paddingHorizontal: 15,
-      paddingVertical: 14,
+      minHeight: 52,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
       color: theme.text,
-      fontSize: 14,
+      fontSize: 15,
       marginBottom: 22,
     },
 
@@ -166,7 +168,7 @@ export default function EditProfileScreen({ navigation, route }) {
     },
 
     aboutInput: {
-      height: 110,
+      minHeight: 110,
     },
 
     characterCount: {
@@ -184,6 +186,9 @@ export default function EditProfileScreen({ navigation, route }) {
       borderRadius: 13,
       paddingVertical: 15,
       alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 10,
       marginTop: 5,
       opacity: loading ? 0.6 : 1,
     },
@@ -214,10 +219,11 @@ export default function EditProfileScreen({ navigation, route }) {
 
   // Open gallery or camera
   async function handleChooseImage() {
-    const image = await openImagePicker();
-
-    if (image) {
-      setSelectedImage(image);
+    try {
+      const image = await openImagePicker();
+      if (image) setSelectedImage(image);
+    } catch (error) {
+      Alert.alert("Unable to choose photo", error.message || "Please try again.");
     }
   }
 
@@ -329,6 +335,8 @@ export default function EditProfileScreen({ navigation, route }) {
             <Pressable
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <Text style={styles.backText}>‹</Text>
             </Pressable>
@@ -344,7 +352,13 @@ export default function EditProfileScreen({ navigation, route }) {
 
           {/* Profile Picture */}
           <View style={styles.avatarSection}>
-            <View style={styles.avatar}>
+            <Pressable
+              style={styles.avatar}
+              onPress={handleChooseImage}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Choose a profile picture"
+            >
               {selectedImage ? (
                 <Image
                   source={{ uri: selectedImage.uri }}
@@ -360,12 +374,14 @@ export default function EditProfileScreen({ navigation, route }) {
                   {name.trim().charAt(0).toUpperCase() || "?"}
                 </Text>
               )}
-            </View>
+            </Pressable>
 
             <Pressable
               style={styles.photoButton}
               onPress={handleChooseImage}
               disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile picture"
             >
               <Text style={styles.photoButtonText}>
                 Change Profile Picture
@@ -434,10 +450,12 @@ export default function EditProfileScreen({ navigation, route }) {
             style={styles.saveButton}
             onPress={handleSave}
             disabled={loading}
+            accessibilityRole="button"
           >
             <Text style={styles.saveButtonText}>
               {loading ? "Saving..." : "Save Changes"}
             </Text>
+            {loading && <ActivityIndicator size="small" color={theme.buttonText} />}
           </Pressable>
 
           {/* Cancel Button */}

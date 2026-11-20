@@ -15,6 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import GroupAvatar from "../components/GroupAvatar";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
@@ -123,7 +124,7 @@ export default function GroupsScreen({ navigation }) {
       : "";
 
     const messagePreview = lastMessage
-      ? `${senderName}: ${lastMessage.text}`
+      ? `${senderName}: ${lastMessage.type === "image" ? "Photo" : lastMessage.text || "Message"}`
       : "No messages yet";
 
     return (
@@ -137,11 +138,7 @@ export default function GroupsScreen({ navigation }) {
         }
       >
         {/* Group avatar */}
-        <View style={styles.groupAvatar}>
-          <Text style={styles.avatarText}>
-            {item.groupName.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        <GroupAvatar name={item.groupName} size={55} theme={theme} />
 
         {/* Group information */}
         <View style={styles.groupDetails}>
@@ -254,24 +251,8 @@ export default function GroupsScreen({ navigation }) {
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: 16,
-      padding: 14,
-      marginBottom: 12,
-    },
-
-    groupAvatar: {
-      width: 55,
-      height: 55,
-      borderRadius: 16,
-      backgroundColor: theme.primary,
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 13,
-    },
-
-    avatarText: {
-      color: "#FFFFFF",
-      fontSize: 22,
-      fontWeight: "bold",
+      padding: 15,
+      marginBottom: 10,
     },
 
     groupDetails: {
@@ -280,7 +261,7 @@ export default function GroupsScreen({ navigation }) {
 
     groupName: {
       color: theme.text,
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: "bold",
     },
 

@@ -34,6 +34,8 @@ export default function UserAvatar({
             borderRadius: radius,
           }}
           resizeMode="cover"
+          accessible
+          accessibilityLabel={`${user?.name || "User"} profile picture`}
         />
       ) : (
         <Text style={{ fontSize: size * 0.42, color: "#FFFFFF", fontWeight: "bold" }}>

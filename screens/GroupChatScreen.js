@@ -21,6 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
+import GroupAvatar from "../components/GroupAvatar";
 import ImagePicker from "../components/imagePicker/ImagePicker";
 import ImagePreview from "../components/imagePicker/ImagePreview";
 
@@ -605,35 +606,26 @@ setIsCreator(
     header: {
       flexDirection: "row",
       alignItems: "center",
-      paddingBottom: 15,
+      paddingBottom: 14,
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
 
     backButton: {
-      marginRight: 15,
-      padding: 8,
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      marginRight: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
     },
 
     backText: {
       color: theme.text,
       fontSize: 28,
-    },
-
-    groupAvatar: {
-      width: 42,
-      height: 42,
-      borderRadius: 13,
-      backgroundColor: theme.primary,
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 12,
-    },
-
-    avatarText: {
-      color: "#FFFFFF",
-      fontSize: 19,
-      fontWeight: "bold",
     },
 
     groupName: {
@@ -751,10 +743,10 @@ setIsCreator(
     },
 
     messageBubble: {
-      maxWidth: "80%",
-      paddingHorizontal: 15,
-      paddingVertical: 10,
-      borderRadius: 16,
+      maxWidth: "86%",
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderRadius: 18,
     },
 
     replyPreview: {
@@ -837,11 +829,11 @@ setIsCreator(
     },
 
     messageImage: {
-      width: 220,
-      height: 200,
-      borderRadius: 10,
+      width: 224,
+      height: 190,
+      borderRadius: 14,
       resizeMode: "contain",
-      backgroundColor: theme.background,
+      backgroundColor: theme.surface,
     },
 
     fullScreenContainer: {
@@ -922,10 +914,10 @@ setIsCreator(
     inputContainer: {
       flexDirection: "row",
       alignItems: "center",
-      paddingVertical: 12,
+      paddingVertical: 10,
       borderTopWidth: 1,
       borderTopColor: theme.border,
-      gap: 10,
+      gap: 8,
     },
 
     attachmentButton: {
@@ -1109,15 +1101,13 @@ setIsCreator(
             <Pressable
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <Text style={styles.backText}>‹</Text>
             </Pressable>
 
-            <View style={styles.groupAvatar}>
-              <Text style={styles.avatarText}>
-                {currentGroupName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <GroupAvatar name={currentGroupName} size={42} theme={theme} />
 
             <View style={styles.headerDetails}>
               <Text style={styles.groupName} numberOfLines={1}>
