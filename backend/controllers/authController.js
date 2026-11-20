@@ -1,4 +1,3 @@
-
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -227,8 +226,68 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// Change the logged-in user's password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (
+      typeof currentPassword !== "string" ||
+      typeof newPassword !== "string" ||
+      !currentPassword ||
+      !newPassword
+    ) {
+      return res.status(400).json({
+        message: "Please provide your current password and a new password",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        message: "New password must contain at least 8 characters",
+      });
+    }
+
+    const isCurrentPasswordCorrect = await bcrypt.compare(
+      currentPassword,
+      req.user.password
+    );
+
+    if (!isCurrentPasswordCorrect) {
+      return res.status(401).json({
+        message: "Current password is incorrect",
+      });
+    }
+
+    const isSamePassword = await bcrypt.compare(
+      newPassword,
+      req.user.password
+    );
+
+    if (isSamePassword) {
+      return res.status(400).json({
+        message: "New password must be different from your current password",
+      });
+    }
+
+    req.user.password = await bcrypt.hash(newPassword, 10);
+    await req.user.save();
+
+    return res.status(200).json({
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.log("Change password error:", error.message);
+
+    return res.status(500).json({
+      message: "Server error while changing password",
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   updateProfile,
+  changePassword,
 };
