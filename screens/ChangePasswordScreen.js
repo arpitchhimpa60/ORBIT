@@ -1,6 +1,4 @@
-
-import { useState, useContext } from "react";
-
+import { useContext, useState } from "react";
 import {
   View,
   Text,
@@ -11,10 +9,13 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
+import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import { ThemeContext } from "../context/ThemeContext";
+import { apiRequest } from "../services/api";
 
 export default function ChangePasswordScreen({ navigation }) {
   const { theme } = useContext(ThemeContext);
@@ -22,329 +23,146 @@ export default function ChangePasswordScreen({ navigation }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Theme-aware styles
   const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 20,
-    },
-
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 30,
-    },
-
+    container: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+    header: { flexDirection: "row", alignItems: "center", marginBottom: 30 },
     backButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 13,
-      backgroundColor: theme.card,
-      borderWidth: 1,
-      borderColor: theme.border,
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 13,
+      width: 44, height: 44, borderRadius: 13,
+      backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border,
+      justifyContent: "center", alignItems: "center", marginRight: 13,
     },
-
-    backText: {
-      color: theme.text,
-      fontSize: 32,
-      lineHeight: 36,
-    },
-
-    heading: {
-      color: theme.text,
-      fontSize: 25,
-      fontWeight: "bold",
-    },
-
-    description: {
-      color: theme.secondaryText,
-      fontSize: 13,
-      marginTop: 4,
-    },
-
+    backText: { color: theme.text, fontSize: 30, lineHeight: 36 },
+    heading: { color: theme.text, fontSize: 25, fontWeight: "bold" },
+    description: { color: theme.secondaryText, fontSize: 13, marginTop: 4 },
     infoCard: {
-      backgroundColor: theme.card,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 16,
-      padding: 17,
-      marginBottom: 28,
+      backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border,
+      borderRadius: 16, padding: 17, marginBottom: 28,
     },
-
-    infoTitle: {
-      color: theme.text,
-      fontSize: 15,
-      fontWeight: "bold",
-      marginBottom: 10,
-    },
-
-    infoText: {
-      color: theme.secondaryText,
-      fontSize: 12,
-      lineHeight: 22,
-    },
-
-    label: {
-      color: theme.text,
-      fontSize: 15,
-      fontWeight: "bold",
-      marginBottom: 9,
-    },
-
+    infoTitle: { color: theme.text, fontSize: 15, fontWeight: "bold", marginBottom: 10 },
+    infoText: { color: theme.secondaryText, fontSize: 12, lineHeight: 22 },
+    label: { color: theme.text, fontSize: 15, fontWeight: "bold", marginBottom: 9 },
     passwordContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: theme.input,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 13,
-      paddingHorizontal: 14,
-      marginBottom: 23,
+      flexDirection: "row", alignItems: "center", backgroundColor: theme.input,
+      borderWidth: 1, borderColor: theme.border, borderRadius: 13,
+      paddingHorizontal: 14, marginBottom: 23,
     },
-
-    passwordInput: {
-      flex: 1,
-      paddingVertical: 15,
-      color: theme.text,
-      fontSize: 14,
-    },
-
-    showButton: {
-      color: theme.highlight,
-      fontSize: 12,
-      fontWeight: "bold",
-      padding: 8,
-    },
-
+    passwordInput: { flex: 1, paddingVertical: 15, color: theme.text, fontSize: 14 },
+    showButton: { color: theme.highlight, fontSize: 12, fontWeight: "bold", padding: 8 },
     saveButton: {
-      backgroundColor: theme.button,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 13,
-      paddingVertical: 15,
-      alignItems: "center",
-      marginTop: 10,
+      backgroundColor: theme.button, borderWidth: 1, borderColor: theme.border,
+      borderRadius: 13, paddingVertical: 15, alignItems: "center", marginTop: 10,
     },
-
-    saveButtonText: {
-      color: theme.buttonText,
-      fontSize: 15,
-      fontWeight: "bold",
-    },
-
+    saveButtonText: { color: theme.buttonText, fontSize: 15, fontWeight: "bold" },
     cancelButton: {
-      backgroundColor: theme.card,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 13,
-      paddingVertical: 15,
-      alignItems: "center",
-      marginTop: 12,
-      marginBottom: 35,
+      backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border,
+      borderRadius: 13, paddingVertical: 15, alignItems: "center",
+      marginTop: 12, marginBottom: 35,
     },
-
-    cancelButtonText: {
-      color: theme.text,
-      fontSize: 14,
-      fontWeight: "600",
-    },
+    cancelButtonText: { color: theme.text, fontSize: 14, fontWeight: "600" },
   });
 
-  // Validate and save the new password
-  function handleSave() {
-    if (
-      currentPassword.trim() === "" ||
-      newPassword.trim() === "" ||
-      confirmPassword.trim() === ""
-    ) {
+  async function handleSave() {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       Alert.alert("Missing fields", "Please fill in all password fields.");
       return;
     }
-
     if (newPassword.length < 8) {
-      Alert.alert(
-        "Weak password",
-        "Your new password must contain at least 8 characters."
-      );
+      Alert.alert("Weak password", "Your new password must contain at least 8 characters.");
       return;
     }
-
     if (newPassword === currentPassword) {
-      Alert.alert(
-        "Same password",
-        "Your new password must be different from your current password."
-      );
+      Alert.alert("Same password", "Your new password must be different from your current password.");
       return;
     }
-
     if (newPassword !== confirmPassword) {
-      Alert.alert(
-        "Password mismatch",
-        "Your new password and confirmation do not match."
-      );
+      Alert.alert("Password mismatch", "Your new password and confirmation do not match.");
       return;
     }
 
-    Alert.alert(
-      "Password validated",
-      "Your new password passed the frontend checks. Actual password updating will be connected to the backend later.",
-      [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]
+    try {
+      setLoading(true);
+      const token = await SecureStore.getItemAsync("userToken");
+      if (!token) throw new Error("Please log in again.");
+
+      const result = await apiRequest(
+        "/api/auth/change-password",
+        "PATCH",
+        { currentPassword, newPassword },
+        token
+      );
+
+      Alert.alert("Password changed", result.message || "Your password was updated successfully.", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      Alert.alert("Unable to change password", error.message || "Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderPasswordField(label, value, setValue, visible, setVisible, placeholder) {
+    return (
+      <>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder={placeholder}
+            placeholderTextColor={theme.placeholder}
+            value={value}
+            onChangeText={setValue}
+            secureTextEntry={!visible}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+          />
+          <Pressable onPress={() => setVisible(!visible)} disabled={loading} hitSlop={10}>
+            <Text style={styles.showButton}>{visible ? "Hide" : "Show"}</Text>
+          </Pressable>
+        </View>
+      </>
     );
   }
 
   return (
     <OrbitalBackground>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          style={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Pressable
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
+            <Pressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
               <Text style={styles.backText}>‹</Text>
             </Pressable>
-
             <View>
               <Text style={styles.heading}>Change Password</Text>
-
-              <Text style={styles.description}>
-                Keep your ORBIT account secure.
-              </Text>
+              <Text style={styles.description}>Keep your ORBIT account secure.</Text>
             </View>
           </View>
 
-          {/* Password Requirements */}
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>
-              Password requirements
-            </Text>
-
-            <Text style={styles.infoText}>
-              • At least 8 characters
-            </Text>
-
-            <Text style={styles.infoText}>
-              • New password must be different from your current password
-            </Text>
-
-            <Text style={styles.infoText}>
-              • Both new password fields must match
-            </Text>
+            <Text style={styles.infoTitle}>Password requirements</Text>
+            <Text style={styles.infoText}>• At least 8 characters</Text>
+            <Text style={styles.infoText}>• New password must differ from your current password</Text>
+            <Text style={styles.infoText}>• Both new password fields must match</Text>
           </View>
 
-          {/* Current Password */}
-          <Text style={styles.label}>Current Password</Text>
+          {renderPasswordField("Current Password", currentPassword, setCurrentPassword, showCurrentPassword, setShowCurrentPassword, "Enter current password")}
+          {renderPasswordField("New Password", newPassword, setNewPassword, showNewPassword, setShowNewPassword, "Enter new password")}
+          {renderPasswordField("Confirm New Password", confirmPassword, setConfirmPassword, showConfirmPassword, setShowConfirmPassword, "Confirm new password")}
 
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Enter current password"
-              placeholderTextColor={theme.placeholder}
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry={!showCurrentPassword}
-              autoCapitalize="none"
-            />
-
-            <Pressable
-              onPress={() =>
-                setShowCurrentPassword(!showCurrentPassword)
-              }
-            >
-              <Text style={styles.showButton}>
-                {showCurrentPassword ? "Hide" : "Show"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* New Password */}
-          <Text style={styles.label}>New Password</Text>
-
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Enter new password"
-              placeholderTextColor={theme.placeholder}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry={!showNewPassword}
-              autoCapitalize="none"
-            />
-
-            <Pressable
-              onPress={() => setShowNewPassword(!showNewPassword)}
-            >
-              <Text style={styles.showButton}>
-                {showNewPassword ? "Hide" : "Show"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Confirm New Password */}
-          <Text style={styles.label}>Confirm New Password</Text>
-
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Confirm new password"
-              placeholderTextColor={theme.placeholder}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-            />
-
-            <Pressable
-              onPress={() =>
-                setShowConfirmPassword(!showConfirmPassword)
-              }
-            >
-              <Text style={styles.showButton}>
-                {showConfirmPassword ? "Hide" : "Show"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Save Button */}
-          <Pressable
-            style={styles.saveButton}
-            onPress={handleSave}
-          >
-            <Text style={styles.saveButtonText}>
-              Save Changes
-            </Text>
+          <Pressable style={[styles.saveButton, loading && { opacity: 0.65 }]} onPress={handleSave} disabled={loading}>
+            {loading ? <ActivityIndicator color={theme.buttonText} /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
           </Pressable>
-
-          {/* Cancel Button */}
-          <Pressable
-            style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.cancelButtonText}>
-              Cancel
-            </Text>
+          <Pressable style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={loading}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
