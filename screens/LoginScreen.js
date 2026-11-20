@@ -30,34 +30,47 @@ export default function LoginScreen({ navigation }) {
     container: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingHorizontal: 28,
-      paddingVertical: 50,
+      paddingHorizontal: 24,
+      paddingTop: 76,
+      paddingBottom: 36,
     },
     backButton: {
       position: "absolute",
-      top: 55,
-      left: 28,
+      top: 18,
+      left: 24,
       zIndex: 1,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
     },
     backText: {
       color: theme.text,
-      fontSize: 16,
+      fontSize: 26,
       fontWeight: "600",
+      lineHeight: 30,
     },
     content: {
+      width: "100%",
+      maxWidth: 480,
+      alignSelf: "center",
       alignItems: "center",
     },
     logo: {
-      fontSize: 38,
-      fontWeight: "bold",
+      fontSize: 34,
+      fontWeight: "800",
       color: theme.text,
       letterSpacing: 4,
     },
     heading: {
-      fontSize: 28,
-      fontWeight: "bold",
+      fontSize: 27,
+      fontWeight: "700",
       color: theme.text,
-      marginTop: 35,
+      marginTop: 25,
     },
     description: {
       color: theme.secondaryText,
@@ -67,21 +80,23 @@ export default function LoginScreen({ navigation }) {
     },
     form: {
       width: "100%",
-      marginTop: 35,
+      marginTop: 24,
     },
     label: {
       color: theme.text,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
-      marginBottom: 9,
-      marginTop: 18,
+      marginBottom: 8,
+      marginTop: 15,
     },
     input: {
+      minHeight: 52,
       backgroundColor: theme.input,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: 12,
-      padding: 15,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
       color: theme.text,
       fontSize: 15,
     },
@@ -91,28 +106,41 @@ export default function LoginScreen({ navigation }) {
       backgroundColor: theme.input,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: 12,
-      paddingHorizontal: 15,
+      minHeight: 52,
+      borderRadius: 14,
+      paddingLeft: 16,
+      paddingRight: 10,
     },
     passwordInput: {
       flex: 1,
-      paddingVertical: 15,
+      minWidth: 0,
+      paddingVertical: 13,
       color: theme.text,
       fontSize: 15,
     },
     showPassword: {
       color: theme.highlight,
       fontWeight: "bold",
-      paddingLeft: 10,
+      fontSize: 12,
+    },
+    visibilityButton: {
+      minWidth: 54,
+      minHeight: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 8,
+      borderRadius: 10,
     },
     primaryButton: {
       backgroundColor: theme.button,
       borderWidth: 1,
       borderColor: theme.border,
-      padding: 16,
-      borderRadius: 12,
+      minHeight: 54,
+      paddingHorizontal: 18,
+      borderRadius: 14,
+      justifyContent: "center",
       alignItems: "center",
-      marginTop: 35,
+      marginTop: 28,
       opacity: loading ? 0.6 : 1,
     },
     primaryButtonText: {
@@ -122,7 +150,7 @@ export default function LoginScreen({ navigation }) {
     },
     footer: {
       flexDirection: "row",
-      marginTop: 30,
+      marginTop: 25,
       alignItems: "center",
       flexWrap: "wrap",
       justifyContent: "center",
@@ -179,13 +207,16 @@ export default function LoginScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           showsVerticalScrollIndicator={false}
         >
           <Pressable
             onPress={() => navigation.goBack()}
             style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={styles.backText}>‹</Text>
           </Pressable>
 
           <View style={styles.content}>
@@ -222,7 +253,13 @@ export default function LoginScreen({ navigation }) {
                   autoCapitalize="none"
                 />
 
-                <Pressable onPress={() => setShowPassword(!showPassword)}>
+                <Pressable
+                  style={styles.visibilityButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  hitSlop={8}
+                >
                   <Text style={styles.showPassword}>
                     {showPassword ? "Hide" : "Show"}
                   </Text>
@@ -241,7 +278,7 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account?</Text>
+              <Text style={styles.footerText}>Don&apos;t have an account?</Text>
 
               <Pressable onPress={() => navigation.navigate("Register")}>
                 <Text style={styles.link}> Create Account</Text>
