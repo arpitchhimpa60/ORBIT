@@ -16,6 +16,7 @@ import * as SecureStore from "expo-secure-store";
 
 import OrbitalBackground from "../components/OrbitalBackground";
 import UserAvatar from "../components/UserAvatar";
+import GroupAvatar from "../components/GroupAvatar";
 
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
@@ -361,28 +362,8 @@ export default function ChatsScreen({ navigation }) {
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: 16,
-      padding: 14,
-      marginBottom: 12,
-    },
-
-    avatarContainer: {
-      width: 55,
-      height: 55,
-      borderRadius: 28,
-      backgroundColor: theme.primary,
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 13,
-    },
-
-    groupAvatar: {
-      borderRadius: 16,
-    },
-
-    avatarText: {
-      color: "#FFFFFF",
-      fontSize: 22,
-      fontWeight: "bold",
+      padding: 15,
+      marginBottom: 10,
     },
 
     privateAvatarWrapper: {
@@ -401,7 +382,7 @@ export default function ChatsScreen({ navigation }) {
 
     chatName: {
       color: theme.text,
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: "bold",
       flex: 1,
     },
@@ -533,16 +514,7 @@ export default function ChatsScreen({ navigation }) {
             />
           </View>
         ) : (
-          <View
-            style={[
-              styles.avatarContainer,
-              styles.groupAvatar,
-            ]}
-          >
-            <Text style={styles.avatarText}>
-              {item.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <GroupAvatar name={item.name} size={55} theme={theme} />
         )}
 
         {/* Conversation details */}
@@ -593,10 +565,10 @@ export default function ChatsScreen({ navigation }) {
           <Pressable
             style={styles.profileButton}
             onPress={() => navigation.navigate("Profile")}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
           >
-            <Text style={styles.profileButtonText}>
-              {user?.name?.charAt(0).toUpperCase() || "U"}
-            </Text>
+            <UserAvatar user={user} size={44} theme={theme} />
           </Pressable>
         </View>
 

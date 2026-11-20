@@ -96,7 +96,7 @@ export default function DiscoverScreen({ navigation }) {
 
   // Fetch users and listen for socket events
   useEffect(() => {
-    fetchUsers();
+    const initialFetch = setTimeout(() => fetchUsers(), 0);
 
     function handleUserOnline(data) {
       if (!data?.userId) {
@@ -138,6 +138,7 @@ export default function DiscoverScreen({ navigation }) {
     socket.on("connect", handleSocketConnect);
 
     return () => {
+      clearTimeout(initialFetch);
       socket.off("userOnline", handleUserOnline);
       socket.off("userOffline", handleUserOffline);
       socket.off("profileUpdated", handleProfileUpdated);
@@ -276,7 +277,7 @@ export default function DiscoverScreen({ navigation }) {
       borderColor: theme.border,
       borderRadius: 14,
       paddingHorizontal: 15,
-      marginBottom: 25,
+      marginBottom: 22,
     },
 
     searchIcon: {
@@ -321,8 +322,8 @@ export default function DiscoverScreen({ navigation }) {
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: 16,
-      padding: 14,
-      marginBottom: 12,
+      padding: 15,
+      marginBottom: 10,
     },
 
     userDetails: {
@@ -332,7 +333,7 @@ export default function DiscoverScreen({ navigation }) {
 
     userName: {
       color: theme.text,
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: "bold",
     },
 
@@ -363,10 +364,13 @@ export default function DiscoverScreen({ navigation }) {
     messageButton: {
       backgroundColor: theme.button,
       paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 10,
+      minHeight: 42,
+      paddingVertical: 9,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.border,
+      justifyContent: "center",
+      alignItems: "center",
     },
 
     messageButtonText: {
