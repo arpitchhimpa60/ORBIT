@@ -1,6 +1,6 @@
 
-const API_URL = "http://10.7.30.78:9876";
-
+// const API_URL = "http://10.7.30.78:9876";
+const API_URL = "https://orbit-re1g.onrender.com";
 // Send a request to the ORBIT backend
 export async function apiRequest(endpoint, method, data, token) {
   const headers = {
