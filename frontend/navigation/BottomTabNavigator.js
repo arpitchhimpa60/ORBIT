@@ -1,6 +1,7 @@
 
 import { useContext } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 
 import { ThemeContext } from "../../context/ThemeContext";
 
@@ -28,9 +29,9 @@ export default function BottomTabNavigator() {
           backgroundColor: theme.tabBar,
           borderTopColor: theme.border,
           borderTopWidth: 1,
-          height: 65,
+          height: 75,
           paddingBottom: 8,
-          paddingTop: 8,
+          paddingTop: 6,
         },
 
         // Tab label styling
@@ -38,15 +39,72 @@ export default function BottomTabNavigator() {
           fontSize: 12,
           fontWeight: "600",
         },
+
+        // Icon styling
+        tabBarIconStyle: {
+          marginBottom: 2,
+        },
       }}
     >
-      <Tab.Screen name="Chats" component={ChatsScreen} />
+      <Tab.Screen
+        name="Chats"
+        component={ChatsScreen}
+        options={{
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? "chatbubble" : "chatbubble-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
+      <Tab.Screen
+        name="Discover"
+        component={DiscoverScreen}
+        options={{
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? "compass" : "compass-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-      <Tab.Screen name="Groups" component={GroupsScreen} />
+      <Tab.Screen
+        name="Groups"
+        component={GroupsScreen}
+        options={{
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? "people" : "people-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={
+                focused
+                  ? "person-circle"
+                  : "person-circle-outline"
+              }
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
